@@ -1,24 +1,43 @@
 use std::time::Duration;
-
 use dbus::blocking::Connection;
 use dbus::channel::MatchingReceiver;
 use dbus::Message;
 use dbus::message::MatchRule;
 use gtk::prelude::*;
+use std::process::Command;
+use gtk::gdk::Display;
+use gtk::Window;
+use gtk::{Application,CssProvider,StyleContext};
+const APP_ID: &str = "org.swaynoti.com";
+fn load_css() {
+    // Load the CSS file and add it to the provider
+    let provider = CssProvider::new();
+    provider.load_from_data(include_bytes!("style.css"));
 
-fn build_ui(application: &gtk::Application) {
-    let window = gtk::ApplicationWindow::new(application);
+    // Add the provider to the default screen
+    StyleContext::add_provider_for_display(
+        &Display::default().expect("Could not connect to a display."),
+        &provider,
+        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
+}
+fn build_ui(app: &Application) {
 
-    window.set_title("First GTK+ Program");
-    window.set_border_width(10);
-    window.set_position(gtk::WindowPosition::Center);
-    window.set_default_size(350, 70);
-
-    let button = gtk::Button::with_label("Click me!");
-
-    window.add(&button);
-
-    window.show_all();
+   
+    // Create a window
+    let window = Window::builder()
+        .application(app)
+        .focusable(true)
+        .valign(gtk::Align::End)
+        .halign(gtk::Align::End)
+        .deletable(false)
+        .can_focus(true)
+        .resizable(false)
+        .build();
+    window.set_decorated(false);
+    window.add_css_class("application");
+    // Presset_focusableent window
+    window.show();
 }
 
 
@@ -57,12 +76,19 @@ fn main() {
     loop { conn.process(Duration::from_millis(1000)).unwrap(); };
 }
 
-fn handle_message(msg: &Message) {
-    println!("Got message: {:?}", msg.get_items()[3]);
-     let application =
-        gtk::Application::new(Some("com.github.gtk-rs.examples.basi"), Default::default());
+fn handle_message(msg: &Message) { 
+    let data = msg.iter_init();
+    for value in data {   
+      println!("value is {:?}",value);  
+    }
+    Command::new("pkill").arg("-RTMIN+8").arg("waybar").spawn().expect("Can't run this command");
+        // Create a new application
+    let app = Application::builder().application_id(APP_ID).build();
+    app.connect_startup(|_| load_css());
+     // Connect to "activate" signal of `app`
+    app.connect_activate(build_ui);
+    // Run the application
+    app.run();
 
-    application.connect_activate(build_ui);
-
-    application.run();
+     
 }
