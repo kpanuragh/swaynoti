@@ -42,6 +42,7 @@ jobs:
             libgtk-4-dev \
             libgraphene-1.0-dev \
             libdbus-1-dev \
+            libasound2-dev \
             pkg-config \
             meson \
             ninja-build \
