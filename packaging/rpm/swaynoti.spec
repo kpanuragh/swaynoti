@@ -3,6 +3,9 @@ Version:        @VERSION@
 Release:        1%{?dist}
 Summary:        Modern Wayland notification daemon
 
+# Disable debuginfo for pre-built binaries
+%global debug_package %{nil}
+
 License:        MIT
 URL:            https://github.com/swaynoti/swaynoti
 Source0:        %{name}-%{version}.tar.gz
