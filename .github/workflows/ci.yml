@@ -25,9 +25,23 @@ jobs:
           sudo apt-get install -y \
             libgtk-4-dev \
             libgraphene-1.0-dev \
-            libgtk4-layer-shell-dev \
             libdbus-1-dev \
-            pkg-config
+            pkg-config \
+            meson \
+            ninja-build \
+            libwayland-dev \
+            gobject-introspection \
+            libgirepository1.0-dev \
+            valac
+
+      - name: Build gtk4-layer-shell from source
+        run: |
+          git clone https://github.com/wmww/gtk4-layer-shell.git
+          cd gtk4-layer-shell
+          meson setup build
+          ninja -C build
+          sudo ninja -C build install
+          sudo ldconfig
 
       - name: Run cargo check
         run: cargo check --all-features
@@ -63,9 +77,23 @@ jobs:
           sudo apt-get install -y \
             libgtk-4-dev \
             libgraphene-1.0-dev \
-            libgtk4-layer-shell-dev \
             libdbus-1-dev \
-            pkg-config
+            pkg-config \
+            meson \
+            ninja-build \
+            libwayland-dev \
+            gobject-introspection \
+            libgirepository1.0-dev \
+            valac
+
+      - name: Build gtk4-layer-shell from source
+        run: |
+          git clone https://github.com/wmww/gtk4-layer-shell.git
+          cd gtk4-layer-shell
+          meson setup build
+          ninja -C build
+          sudo ninja -C build install
+          sudo ldconfig
 
       - name: Run clippy
         run: cargo clippy --all-features -- -D warnings
@@ -85,9 +113,23 @@ jobs:
           sudo apt-get install -y \
             libgtk-4-dev \
             libgraphene-1.0-dev \
-            libgtk4-layer-shell-dev \
             libdbus-1-dev \
-            pkg-config
+            pkg-config \
+            meson \
+            ninja-build \
+            libwayland-dev \
+            gobject-introspection \
+            libgirepository1.0-dev \
+            valac
+
+      - name: Build gtk4-layer-shell from source
+        run: |
+          git clone https://github.com/wmww/gtk4-layer-shell.git
+          cd gtk4-layer-shell
+          meson setup build
+          ninja -C build
+          sudo ninja -C build install
+          sudo ldconfig
 
       - name: Run tests
         run: cargo test --all-features
@@ -107,9 +149,23 @@ jobs:
           sudo apt-get install -y \
             libgtk-4-dev \
             libgraphene-1.0-dev \
-            libgtk4-layer-shell-dev \
             libdbus-1-dev \
-            pkg-config
+            pkg-config \
+            meson \
+            ninja-build \
+            libwayland-dev \
+            gobject-introspection \
+            libgirepository1.0-dev \
+            valac
+
+      - name: Build gtk4-layer-shell from source
+        run: |
+          git clone https://github.com/wmww/gtk4-layer-shell.git
+          cd gtk4-layer-shell
+          meson setup build
+          ninja -C build
+          sudo ninja -C build install
+          sudo ldconfig
 
       - name: Build release
         run: cargo build --release --all-features
