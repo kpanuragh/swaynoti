@@ -1,0 +1,35 @@
+[Unit]
+Description=Swaynoti Notification Daemon
+Documentation=https://github.com/swaynoti/swaynoti
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/swaynoti
+Restart=on-failure
+RestartSec=5
+
+# Environment
+Environment=RUST_LOG=info
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+MemoryDenyWriteExecute=yes
+LockPersonality=yes
+
+# Allow access to user runtime directory and config
+ReadWritePaths=%t
+ReadOnlyPaths=%h/.config/swaynoti
+
+[Install]
+WantedBy=graphical-session.target

@@ -1,0 +1,223 @@
+/* Swaynoti Default Theme - Catppuccin Mocha inspired */
+
+/* Window background (transparent for layer-shell) */
+window {
+    background-color: transparent;
+}
+
+/* Notification container */
+.notification {
+    background-color: rgba(30, 30, 46, 0.95);
+    border-radius: 12px;
+    padding: 12px;
+    margin: 4px;
+    border: 1px solid rgba(69, 71, 90, 0.5);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    transition: all 200ms ease;
+}
+
+.notification:hover {
+    background-color: rgba(49, 50, 68, 0.98);
+    border-color: rgba(137, 180, 250, 0.5);
+}
+
+/* Urgency levels */
+.notification.low {
+    border-left: 4px solid #a6e3a1;
+}
+
+.notification.normal {
+    border-left: 4px solid #89b4fa;
+}
+
+.notification.critical {
+    border-left: 4px solid #f38ba8;
+    background-color: rgba(243, 139, 168, 0.1);
+}
+
+.notification.critical:hover {
+    background-color: rgba(243, 139, 168, 0.15);
+}
+
+/* App name */
+.notification .app-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(205, 214, 244, 0.6);
+    margin-bottom: 4px;
+}
+
+/* Summary/title */
+.notification .summary {
+    font-size: 14px;
+    font-weight: 600;
+    color: #cdd6f4;
+    margin-bottom: 4px;
+}
+
+/* Body text */
+.notification .body {
+    font-size: 13px;
+    color: rgba(205, 214, 244, 0.85);
+    line-height: 1.4;
+}
+
+/* Icon */
+.notification .icon {
+    min-width: 48px;
+    min-height: 48px;
+    margin-right: 12px;
+    border-radius: 8px;
+    background-color: rgba(69, 71, 90, 0.3);
+}
+
+/* Action buttons container */
+.notification .actions {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(69, 71, 90, 0.3);
+}
+
+/* Action button */
+.notification .action-button {
+    background: rgba(137, 180, 250, 0.15);
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    margin-right: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #89b4fa;
+    transition: all 150ms ease;
+}
+
+.notification .action-button:hover {
+    background: rgba(137, 180, 250, 0.25);
+    color: #b4befe;
+}
+
+.notification .action-button:active {
+    background: rgba(137, 180, 250, 0.35);
+}
+
+/* Progress bar */
+.notification .progress {
+    margin-top: 8px;
+}
+
+.notification .progress trough {
+    background: rgba(205, 214, 244, 0.1);
+    border-radius: 4px;
+    min-height: 6px;
+}
+
+.notification .progress progress {
+    background: linear-gradient(90deg, #89b4fa, #b4befe);
+    border-radius: 4px;
+    min-height: 6px;
+}
+
+/* Close button */
+.notification .close-button {
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    min-width: 24px;
+    min-height: 24px;
+    padding: 4px;
+    opacity: 0;
+    transition: all 150ms ease;
+    color: rgba(205, 214, 244, 0.6);
+}
+
+.notification:hover .close-button {
+    opacity: 0.6;
+}
+
+.notification .close-button:hover {
+    opacity: 1;
+    background: rgba(243, 139, 168, 0.2);
+    color: #f38ba8;
+}
+
+/* Timestamp */
+.notification .timestamp {
+    font-size: 10px;
+    color: rgba(205, 214, 244, 0.4);
+}
+
+/* Spotify custom styling (example) */
+.notification.spotify {
+    border-left-color: #1db954;
+}
+
+.notification.spotify .action-button {
+    background: rgba(29, 185, 84, 0.15);
+    color: #1db954;
+}
+
+.notification.spotify .action-button:hover {
+    background: rgba(29, 185, 84, 0.25);
+}
+
+/* Discord custom styling (example) */
+.notification.discord {
+    border-left-color: #5865f2;
+}
+
+/* Animation classes */
+.notification.slide-in-right {
+    animation: slideInRight 200ms ease-out;
+}
+
+.notification.slide-out-right {
+    animation: slideOutRight 200ms ease-in;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.notification.fade-in {
+    animation: fadeIn 200ms ease-out;
+}
+
+.notification.fade-out {
+    animation: fadeOut 200ms ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}

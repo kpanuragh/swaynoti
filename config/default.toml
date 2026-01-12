@@ -1,0 +1,116 @@
+# Swaynoti Default Configuration
+
+[general]
+# Maximum number of notifications visible at once
+max_visible = 5
+# Sort order: newest-first, oldest-first, urgency-descending
+sort_order = "newest-first"
+# Enable pango markup in notification body
+markup = true
+
+[appearance]
+# Path to custom CSS theme (optional)
+# theme = "~/.config/swaynoti/theme.css"
+# Notification width in pixels
+width = 350
+# Maximum notification height
+max_height = 200
+# Border radius in pixels
+border_radius = 12
+# Gap between notifications
+gap = 8
+# Window opacity (0.0 - 1.0)
+opacity = 0.95
+# Icon size in pixels
+icon_size = 48
+# Show application name
+show_app_name = true
+
+[appearance.animations]
+# Enable animations
+enabled = true
+# Animation duration in milliseconds
+duration_ms = 200
+# Slide direction: right, left, up, down
+slide_direction = "right"
+
+[positioning]
+# Screen anchor: top-left, top-center, top-right, bottom-left, bottom-center, bottom-right
+anchor = "top-right"
+# Layer: background, bottom, top, overlay
+layer = "overlay"
+# Stacking mode: vertical, horizontal, overlay
+stacking = "vertical"
+
+[positioning.margin]
+top = 10
+right = 10
+bottom = 10
+left = 10
+
+[positioning.monitor]
+# Monitor selection: primary, focused, all, named
+selection = "focused"
+# Monitor name (when selection = "named")
+# name = "DP-1"
+
+[timeouts]
+# Default timeout in milliseconds
+default = 5000
+# Low urgency timeout
+low = 3000
+# Normal urgency timeout
+normal = 5000
+# Critical urgency timeout (0 = never expires)
+critical = 0
+
+[history]
+# Enable notification history
+enabled = true
+# Maximum number of history entries
+max_entries = 100
+# History database path (optional, defaults to XDG data dir)
+# database_path = "~/.local/share/swaynoti/history.db"
+
+[dnd]
+# Scheduled Do Not Disturb (optional)
+# schedule_start = "22:00"
+# schedule_end = "08:00"
+# schedule_days = ["monday", "tuesday", "wednesday", "thursday", "friday"]
+
+[sound]
+# Enable notification sounds
+enabled = false
+# Default sound file (optional)
+# default_sound = "/usr/share/sounds/freedesktop/stereo/message.oga"
+
+[ipc]
+# IPC socket path (optional, defaults to $XDG_RUNTIME_DIR/swaynoti.sock)
+# socket_path = "/run/user/1000/swaynoti.sock"
+
+# Example rules:
+
+# Spotify notifications
+# [[rules]]
+# [rules.criteria]
+# app_name = "Spotify"
+# [rules.actions]
+# timeout = 3000
+# css_class = "spotify"
+# skip_history = true
+
+# Discord direct messages
+# [[rules]]
+# [rules.criteria]
+# app_name = "discord"
+# summary = ".*Direct Message.*"
+# [rules.actions]
+# urgency = "critical"
+
+# All critical notifications
+# [[rules]]
+# [rules.criteria]
+# urgency = "critical"
+# [rules.actions]
+# timeout = 0
+# css_class = "critical"

@@ -1,94 +1,170 @@
-use std::time::Duration;
-use dbus::blocking::Connection;
-use dbus::channel::MatchingReceiver;
-use dbus::Message;
-use dbus::message::MatchRule;
-use gtk::prelude::*;
-use std::process::Command;
-use gtk::gdk::Display;
-use gtk::Window;
-use gtk::{Application,CssProvider,StyleContext};
-const APP_ID: &str = "org.swaynoti.com";
-fn load_css() {
-    // Load the CSS file and add it to the provider
-    let provider = CssProvider::new();
-    provider.load_from_data(include_bytes!("style.css"));
+use std::sync::Arc;
 
-    // Add the provider to the default screen
-    StyleContext::add_provider_for_display(
-        &Display::default().expect("Could not connect to a display."),
-        &provider,
-        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-    );
+use anyhow::Result;
+use clap::Parser;
+use parking_lot::RwLock;
+use tracing::{info, Level};
+use tracing_subscriber::FmtSubscriber;
+
+mod config;
+mod dbus;
+mod notification;
+mod ui;
+mod positioning;
+mod ipc;
+mod rules;
+mod dnd;
+
+#[cfg(feature = "sound")]
+mod sound;
+
+use config::{Config, ConfigLoader};
+use dbus::start_dbus_server;
+use dnd::DndState;
+use notification::{NotificationManager, UiEvent, ActionEvent};
+use ui::SwaynotiApp;
+
+/// Swaynoti - A modern Wayland notification daemon
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Path to configuration file
+    #[arg(short, long)]
+    config: Option<String>,
+
+    /// Enable debug logging
+    #[arg(short, long)]
+    debug: bool,
+
+    /// Run in foreground (don't daemonize)
+    #[arg(short, long)]
+    foreground: bool,
 }
-fn build_ui(app: &Application) {
 
-   
-    // Create a window
-    let window = Window::builder()
-        .application(app)
-        .focusable(true)
-        .valign(gtk::Align::End)
-        .halign(gtk::Align::End)
-        .deletable(false)
-        .can_focus(true)
-        .resizable(false)
-        .build();
-    window.set_decorated(false);
-    window.add_css_class("application");
-    // Presset_focusableent window
-    window.show();
+fn setup_logging(debug: bool) {
+    let level = if debug { Level::DEBUG } else { Level::INFO };
+
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(level)
+        .with_target(false)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("Failed to set tracing subscriber");
 }
 
+fn main() -> Result<()> {
+    let args = Args::parse();
 
-// This programs implements the equivalent of running the "dbus-monitor" tool
-fn main() {
-    // First open up a connection to the session bus.
-    let conn = Connection::new_session().expect("D-Bus connection failed");
+    // Setup logging
+    setup_logging(args.debug);
 
-    // Second create a rule to match messages we want to receive; in this example we add no
-    // further requirements, so all messages will match
-    let mut rule = MatchRule::new();
-    rule = rule.with_path("/org/freedesktop/Notifications");
-    rule = rule.with_member("Notify");
+    info!("Starting swaynoti v{}", env!("CARGO_PKG_VERSION"));
 
-    // Try matching using new scheme
-    let proxy = conn.with_proxy("org.freedesktop.DBus", "/org/freedesktop/Notifications", Duration::from_millis(5000));
-    let result: Result<(), dbus::Error> = proxy.method_call("org.freedesktop.Notifications", "Notify", (vec!(rule.match_str()), 0u32));
-
-    if result.is_ok() {
-        // Start matching using new scheme
-        conn.start_receive(rule, Box::new(|msg, _| {
-            handle_message(&msg);
-            true
-        }));
+    // Load configuration
+    let config = if let Some(ref path) = args.config {
+        ConfigLoader::load_from_path(&path.into())?
     } else {
-        // Start matching using old scheme
-        rule.eavesdrop = true; // this lets us eavesdrop on *all* session messages, not just ours
-        conn.add_match(rule, |_: (), _, msg| {
-            handle_message(&msg);
-            true
-        }).expect("add_match failed");
-    }
+        ConfigLoader::load()?
+    };
 
-    // Loop and print out all messages received (using handle_message()) as they come.
-    // Some can be quite large, e.g. if they contain embedded images..
-    loop { conn.process(Duration::from_millis(1000)).unwrap(); };
-}
+    let config = Arc::new(RwLock::new(config));
+    info!("Configuration loaded");
 
-fn handle_message(msg: &Message) { 
-    let data = msg.iter_init();
-    for value in data {   
-      println!("value is {:?}",value);  
-    }
-    Command::new("pkill").arg("-RTMIN+8").arg("waybar").spawn().expect("Can't run this command");
-        // Create a new application
-    let app = Application::builder().application_id(APP_ID).build();
-    app.connect_startup(|_| load_css());
-     // Connect to "activate" signal of `app`
-    app.connect_activate(build_ui);
-    // Run the application
-    app.run();
+    // Create communication channels
+    let (ui_sender, ui_receiver) = async_channel::unbounded::<UiEvent>();
+    let (action_sender, action_receiver) = async_channel::unbounded::<ActionEvent>();
+    let (close_sender, close_receiver) = async_channel::unbounded::<(u32, notification::CloseReason)>();
 
-     
+    // Create DND state
+    let dnd_state = Arc::new(DndState::new());
+
+    // Create notification manager
+    let manager = Arc::new(NotificationManager::new(
+        config.clone(),
+        ui_sender,
+        close_sender,
+    ));
+
+    // Start the tokio runtime for async tasks
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+
+    // Clone for async tasks
+    let dbus_manager = manager.clone();
+    let ipc_manager = manager.clone();
+    let ipc_dnd = dnd_state.clone();
+    let ipc_config = config.clone();
+
+    // Spawn async tasks
+    runtime.spawn(async move {
+        // Start D-Bus server
+        match start_dbus_server(dbus_manager, close_receiver).await {
+            Ok(connection) => {
+                // Keep the connection alive forever
+                // The connection must stay in scope for the D-Bus name to remain registered
+                loop {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
+                }
+                // This drop is never reached but makes the compiler happy about `connection` being used
+                #[allow(unreachable_code)]
+                drop(connection);
+            }
+            Err(e) => {
+                tracing::error!("D-Bus server error: {}", e);
+            }
+        }
+    });
+
+    // Start IPC server
+    runtime.spawn(async move {
+        let socket_path = ipc_config.read().ipc.socket_path.clone();
+        if let Err(e) = ipc::start_ipc_server(ipc_manager, ipc_dnd, socket_path).await {
+            tracing::error!("IPC server error: {}", e);
+        }
+    });
+
+    // Start DND scheduler
+    let dnd_config = config.read().dnd.clone();
+    let scheduler_dnd = dnd_state.clone();
+    runtime.spawn(async move {
+        let scheduler = dnd::DndScheduler::new(dnd_config, scheduler_dnd);
+        scheduler.run().await;
+    });
+
+    // Handle action events from UI
+    let action_manager = manager.clone();
+    runtime.spawn(async move {
+        while let Ok(event) = action_receiver.recv().await {
+            match event {
+                ActionEvent::ActionInvoked { id, action_key } => {
+                    action_manager.invoke_action(id, &action_key).await;
+                }
+                ActionEvent::Dismissed { id } => {
+                    action_manager.close_notification(id, notification::CloseReason::Dismissed).await;
+                }
+                ActionEvent::Hovered { id } => {
+                    action_manager.set_hovered(id, true);
+                }
+                ActionEvent::Unhovered { id } => {
+                    action_manager.set_hovered(id, false);
+                }
+            }
+        }
+    });
+
+    info!("Async services started");
+
+    // Initialize GTK (must be on main thread)
+    gtk4::init().expect("Failed to initialize GTK4");
+
+    // Create and run the GTK application
+    let app = SwaynotiApp::new(config, action_sender);
+
+    info!("Starting GTK application");
+    app.run(ui_receiver);
+
+    info!("Swaynoti shutting down");
+    Ok(())
 }
