@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use async_channel::Receiver;
 use tracing::{debug, info};
+use zbus::interface;
 use zbus::object_server::SignalEmitter;
 use zbus::zvariant::{OwnedValue, Value};
-use zbus::interface;
 
 use super::types::{ServerInfo, CAPABILITIES};
 use crate::notification::{

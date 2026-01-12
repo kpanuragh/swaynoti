@@ -1,4 +1,3 @@
-
 use async_channel::Sender;
 use gtk4::prelude::*;
 use gtk4::{Application, Window};
