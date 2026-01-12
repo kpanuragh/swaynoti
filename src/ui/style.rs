@@ -2,13 +2,12 @@ use std::path::Path;
 use std::sync::Arc;
 
 use gtk4::gdk::Display;
-use gtk4::prelude::*;
-use gtk4::{CssProvider, StyleContext};
+use gtk4::CssProvider;
 use parking_lot::RwLock;
 use tracing::{debug, info, warn};
 
-use crate::config::Config;
 use crate::config::defaults::DEFAULT_CSS;
+use crate::config::Config;
 
 /// Manages CSS styling for the application
 pub struct StyleManager {

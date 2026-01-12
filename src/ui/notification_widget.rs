@@ -1,7 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{
-    Align, Box as GtkBox, Button, Image, Label, Orientation, ProgressBar, Widget,
-};
+use gtk4::{Align, Box as GtkBox, Button, Image, Label, Orientation, ProgressBar, Widget};
 use tracing::debug;
 
 use crate::config::Config;
@@ -107,7 +105,8 @@ impl NotificationWidget {
                 image_data.height,
                 image_data.rowstride,
             );
-            if let Some(scaled) = pixbuf.scale_simple(size, size, gdk_pixbuf::InterpType::Bilinear) {
+            if let Some(scaled) = pixbuf.scale_simple(size, size, gdk_pixbuf::InterpType::Bilinear)
+            {
                 let texture = gtk4::gdk::Texture::for_pixbuf(&scaled);
                 let image = Image::from_paintable(Some(&texture));
                 image.add_css_class("icon");
@@ -166,7 +165,10 @@ impl NotificationWidget {
             let notification_id = notification.id;
 
             button.connect_clicked(move |_| {
-                debug!("Action '{}' clicked on notification {}", action_key, notification_id);
+                debug!(
+                    "Action '{}' clicked on notification {}",
+                    action_key, notification_id
+                );
                 // Action will be handled via callback
             });
 
@@ -182,11 +184,12 @@ impl NotificationWidget {
     }
 
     /// Update the notification content
-    pub fn update(&self, notification: &Notification, config: &Config) {
+    pub fn update(&self, notification: &Notification, _config: &Config) {
         // For now, just update CSS classes
         self.container.remove_css_class("low");
         self.container.remove_css_class("normal");
         self.container.remove_css_class("critical");
-        self.container.add_css_class(notification.hints.urgency.css_class());
+        self.container
+            .add_css_class(notification.hints.urgency.css_class());
     }
 }

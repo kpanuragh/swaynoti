@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Main configuration structure
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Config {
     pub general: GeneralConfig,
@@ -15,22 +15,6 @@ pub struct Config {
     pub ipc: IpcConfig,
     #[serde(default)]
     pub rules: Vec<AppRule>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            general: GeneralConfig::default(),
-            appearance: AppearanceConfig::default(),
-            positioning: PositioningConfig::default(),
-            timeouts: TimeoutConfig::default(),
-            history: HistoryConfig::default(),
-            dnd: DndConfig::default(),
-            sound: SoundConfig::default(),
-            ipc: IpcConfig::default(),
-            rules: Vec::new(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -224,7 +208,7 @@ impl Default for HistoryConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct DndConfig {
     /// Start time for scheduled DND (HH:MM format)
@@ -235,43 +219,18 @@ pub struct DndConfig {
     pub schedule_days: Vec<Weekday>,
 }
 
-impl Default for DndConfig {
-    fn default() -> Self {
-        Self {
-            schedule_start: None,
-            schedule_end: None,
-            schedule_days: Vec::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct SoundConfig {
     pub enabled: bool,
     pub default_sound: Option<PathBuf>,
 }
 
-impl Default for SoundConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            default_sound: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct IpcConfig {
     /// Unix socket path
     pub socket_path: Option<PathBuf>,
-}
-
-impl Default for IpcConfig {
-    fn default() -> Self {
-        Self { socket_path: None }
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

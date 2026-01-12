@@ -5,8 +5,8 @@ use std::sync::Arc;
 use async_channel::Sender;
 use chrono::Utc;
 use parking_lot::RwLock;
-use tokio::time::{Duration, sleep};
-use tracing::{debug, info, warn};
+use tokio::time::{sleep, Duration};
+use tracing::{debug, info};
 
 use super::{Notification, Urgency};
 use crate::config::Config;
@@ -112,7 +112,8 @@ impl NotificationManager {
         // Calculate expiration time
         let timeout = self.calculate_timeout(&notification);
         if timeout > 0 {
-            notification.expires_at = Some(Utc::now() + chrono::Duration::milliseconds(timeout as i64));
+            notification.expires_at =
+                Some(Utc::now() + chrono::Duration::milliseconds(timeout as i64));
         }
 
         let is_replacement = {
@@ -124,7 +125,10 @@ impl NotificationManager {
 
         if is_replacement {
             debug!("Replacing notification {}", id);
-            let _ = self.ui_sender.send(UiEvent::Update(id, notification.clone())).await;
+            let _ = self
+                .ui_sender
+                .send(UiEvent::Update(id, notification.clone()))
+                .await;
         } else {
             // Add to display order
             {
@@ -136,20 +140,28 @@ impl NotificationManager {
                     crate::config::SortOrder::OldestFirst => order.push(id),
                     crate::config::SortOrder::UrgencyDescending => {
                         // Insert based on urgency
-                        let pos = order.iter().position(|&existing_id| {
-                            if let Some(existing) = self.notifications.read().get(&existing_id) {
-                                (notification.hints.urgency as u8) > (existing.hints.urgency as u8)
-                            } else {
-                                true
-                            }
-                        }).unwrap_or(order.len());
+                        let pos = order
+                            .iter()
+                            .position(|&existing_id| {
+                                if let Some(existing) = self.notifications.read().get(&existing_id)
+                                {
+                                    (notification.hints.urgency as u8)
+                                        > (existing.hints.urgency as u8)
+                                } else {
+                                    true
+                                }
+                            })
+                            .unwrap_or(order.len());
                         order.insert(pos, id);
                     }
                 }
             }
 
             info!("Added notification {}: {}", id, notification.summary);
-            let _ = self.ui_sender.send(UiEvent::Show(notification.clone())).await;
+            let _ = self
+                .ui_sender
+                .send(UiEvent::Show(notification.clone()))
+                .await;
         }
 
         // Schedule expiration if timeout > 0
@@ -186,7 +198,7 @@ impl NotificationManager {
     async fn schedule_expiration(&self, id: u32, timeout_ms: i32) {
         let ui_sender = self.ui_sender.clone();
         let close_sender = self.close_sender.clone();
-        let notifications = Arc::new(&self.notifications);
+        let _notifications = Arc::new(&self.notifications);
 
         tokio::spawn(async move {
             sleep(Duration::from_millis(timeout_ms as u64)).await;
@@ -245,7 +257,11 @@ impl NotificationManager {
     pub async fn invoke_action(&self, id: u32, action_key: &str) {
         if let Some(notification) = self.get_notification(id) {
             // Check if action exists
-            if notification.actions.iter().any(|(key, _)| key == action_key) {
+            if notification
+                .actions
+                .iter()
+                .any(|(key, _)| key == action_key)
+            {
                 info!("Action '{}' invoked on notification {}", action_key, id);
                 // The D-Bus server will emit the ActionInvoked signal
             }

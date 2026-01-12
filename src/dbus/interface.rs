@@ -2,17 +2,20 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_channel::Receiver;
+use tracing::{debug, info};
 use zbus::object_server::SignalEmitter;
 use zbus::zvariant::{OwnedValue, Value};
-use zbus::{interface, Connection};
-use tracing::{debug, info, warn};
+use zbus::interface;
 
 use super::types::{ServerInfo, CAPABILITIES};
-use crate::notification::{CloseReason, ImageData, Notification, NotificationHints, NotificationManager, Urgency};
+use crate::notification::{
+    CloseReason, ImageData, Notification, NotificationHints, NotificationManager, Urgency,
+};
 
 /// D-Bus notification server implementing org.freedesktop.Notifications
 pub struct NotificationServer {
     manager: Arc<NotificationManager>,
+    #[allow(dead_code)]
     close_receiver: Receiver<(u32, CloseReason)>,
 }
 
@@ -157,6 +160,7 @@ impl NotificationServer {
     }
 
     /// Sends a notification to the notification server
+    #[allow(clippy::too_many_arguments)]
     async fn notify(
         &self,
         app_name: &str,

@@ -6,16 +6,15 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use tracing::{debug, error, info, warn};
 
-use crate::notification::NotificationManager;
 use crate::dnd::DndState;
+use crate::notification::NotificationManager;
 
 use super::commands::IpcCommand;
 use super::handler::IpcHandler;
 
 /// Get the default socket path
 pub fn default_socket_path() -> PathBuf {
-    let runtime_dir = std::env::var("XDG_RUNTIME_DIR")
-        .unwrap_or_else(|_| "/tmp".to_string());
+    let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
     PathBuf::from(runtime_dir).join("swaynoti.sock")
 }
 

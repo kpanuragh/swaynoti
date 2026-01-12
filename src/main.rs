@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -8,20 +10,20 @@ use tracing_subscriber::FmtSubscriber;
 
 mod config;
 mod dbus;
-mod notification;
-mod ui;
-mod positioning;
-mod ipc;
-mod rules;
 mod dnd;
+mod ipc;
+mod notification;
+mod positioning;
+mod rules;
+mod ui;
 
 #[cfg(feature = "sound")]
 mod sound;
 
-use config::{Config, ConfigLoader};
+use config::ConfigLoader;
 use dbus::start_dbus_server;
 use dnd::DndState;
-use notification::{NotificationManager, UiEvent, ActionEvent};
+use notification::{ActionEvent, NotificationManager, UiEvent};
 use ui::SwaynotiApp;
 
 /// Swaynoti - A modern Wayland notification daemon
@@ -49,8 +51,7 @@ fn setup_logging(debug: bool) {
         .with_target(false)
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("Failed to set tracing subscriber");
+    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
 }
 
 fn main() -> Result<()> {
@@ -74,7 +75,8 @@ fn main() -> Result<()> {
     // Create communication channels
     let (ui_sender, ui_receiver) = async_channel::unbounded::<UiEvent>();
     let (action_sender, action_receiver) = async_channel::unbounded::<ActionEvent>();
-    let (close_sender, close_receiver) = async_channel::unbounded::<(u32, notification::CloseReason)>();
+    let (close_sender, close_receiver) =
+        async_channel::unbounded::<(u32, notification::CloseReason)>();
 
     // Create DND state
     let dnd_state = Arc::new(DndState::new());
@@ -101,15 +103,12 @@ fn main() -> Result<()> {
     runtime.spawn(async move {
         // Start D-Bus server
         match start_dbus_server(dbus_manager, close_receiver).await {
-            Ok(connection) => {
+            Ok(_connection) => {
                 // Keep the connection alive forever
                 // The connection must stay in scope for the D-Bus name to remain registered
                 loop {
                     tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await;
                 }
-                // This drop is never reached but makes the compiler happy about `connection` being used
-                #[allow(unreachable_code)]
-                drop(connection);
             }
             Err(e) => {
                 tracing::error!("D-Bus server error: {}", e);
@@ -142,7 +141,9 @@ fn main() -> Result<()> {
                     action_manager.invoke_action(id, &action_key).await;
                 }
                 ActionEvent::Dismissed { id } => {
-                    action_manager.close_notification(id, notification::CloseReason::Dismissed).await;
+                    action_manager
+                        .close_notification(id, notification::CloseReason::Dismissed)
+                        .await;
                 }
                 ActionEvent::Hovered { id } => {
                     action_manager.set_hovered(id, true);

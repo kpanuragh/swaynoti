@@ -84,8 +84,7 @@ struct IpcResponse {
 
 fn get_socket_path(custom: Option<PathBuf>) -> PathBuf {
     custom.unwrap_or_else(|| {
-        let runtime_dir = std::env::var("XDG_RUNTIME_DIR")
-            .unwrap_or_else(|_| "/tmp".to_string());
+        let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
         PathBuf::from(runtime_dir).join("swaynoti.sock")
     })
 }
@@ -102,8 +101,8 @@ fn send_command(socket_path: &PathBuf, command: IpcCommand) -> Result<IpcRespons
     let mut response = String::new();
     reader.read_line(&mut response)?;
 
-    let response: IpcResponse = serde_json::from_str(&response)
-        .context("Failed to parse response")?;
+    let response: IpcResponse =
+        serde_json::from_str(&response).context("Failed to parse response")?;
 
     Ok(response)
 }
@@ -153,8 +152,10 @@ fn main() -> Result<()> {
                             if let Some(obj) = item.as_object() {
                                 let id = obj.get("id").and_then(|v| v.as_u64()).unwrap_or(0);
                                 let app = obj.get("app").and_then(|v| v.as_str()).unwrap_or("");
-                                let summary = obj.get("summary").and_then(|v| v.as_str()).unwrap_or("");
-                                let urgency = obj.get("urgency").and_then(|v| v.as_str()).unwrap_or("");
+                                let summary =
+                                    obj.get("summary").and_then(|v| v.as_str()).unwrap_or("");
+                                let urgency =
+                                    obj.get("urgency").and_then(|v| v.as_str()).unwrap_or("");
                                 println!("[{}] {} - {} ({})", id, app, summary, urgency);
                             }
                         }
@@ -167,7 +168,10 @@ fn main() -> Result<()> {
                 println!("OK");
             }
         } else {
-            eprintln!("Error: {}", response.error.unwrap_or_else(|| "Unknown error".into()));
+            eprintln!(
+                "Error: {}",
+                response.error.unwrap_or_else(|| "Unknown error".into())
+            );
             std::process::exit(1);
         }
     }

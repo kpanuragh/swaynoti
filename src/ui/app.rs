@@ -4,16 +4,15 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use async_channel::{Receiver, Sender};
-use gtk4::prelude::*;
 use gtk4::{gio, Application};
 use parking_lot::RwLock;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 use crate::config::Config;
 use crate::notification::{ActionEvent, Notification, UiEvent};
 
-use super::window::NotificationWindow;
 use super::style::StyleManager;
+use super::window::NotificationWindow;
 
 const APP_ID: &str = "org.swaynoti.daemon";
 
@@ -28,10 +27,7 @@ pub struct SwaynotiApp {
 
 impl SwaynotiApp {
     /// Create a new swaynoti application
-    pub fn new(
-        config: Arc<RwLock<Config>>,
-        action_sender: Sender<ActionEvent>,
-    ) -> Self {
+    pub fn new(config: Arc<RwLock<Config>>, action_sender: Sender<ActionEvent>) -> Self {
         let app = Application::builder()
             .application_id(APP_ID)
             .flags(gio::ApplicationFlags::NON_UNIQUE)
@@ -62,13 +58,7 @@ impl SwaynotiApp {
 
         // Spawn UI event handler on GLib main context
         glib::MainContext::default().spawn_local(async move {
-            Self::handle_ui_events(
-                app,
-                config,
-                windows,
-                action_sender,
-                ui_receiver,
-            ).await;
+            Self::handle_ui_events(app, config, windows, action_sender, ui_receiver).await;
         });
 
         // Run the GLib main loop (this blocks)
@@ -90,13 +80,7 @@ impl SwaynotiApp {
         while let Ok(event) = receiver.recv().await {
             match event {
                 UiEvent::Show(notification) => {
-                    Self::show_notification(
-                        &app,
-                        &config,
-                        &windows,
-                        &action_sender,
-                        notification,
-                    );
+                    Self::show_notification(&app, &config, &windows, &action_sender, notification);
                 }
                 UiEvent::Update(id, notification) => {
                     Self::update_notification(&config, &windows, id, notification);
@@ -144,7 +128,11 @@ impl SwaynotiApp {
         window.show();
         windows.borrow_mut().insert(id, window);
 
-        info!("Displayed notification {} (total: {})", id, windows.borrow().len());
+        info!(
+            "Displayed notification {} (total: {})",
+            id,
+            windows.borrow().len()
+        );
     }
 
     /// Update an existing notification
@@ -163,14 +151,15 @@ impl SwaynotiApp {
     }
 
     /// Close a notification
-    fn close_notification(
-        windows: &Rc<RefCell<HashMap<u32, NotificationWindow>>>,
-        id: u32,
-    ) {
+    fn close_notification(windows: &Rc<RefCell<HashMap<u32, NotificationWindow>>>, id: u32) {
         let window = windows.borrow_mut().remove(&id);
         if let Some(window) = window {
             window.close();
-            info!("Closed notification {} (remaining: {})", id, windows.borrow().len());
+            info!(
+                "Closed notification {} (remaining: {})",
+                id,
+                windows.borrow().len()
+            );
         }
     }
 

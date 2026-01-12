@@ -1,6 +1,5 @@
 use gtk4::gdk::Monitor;
 use gtk4::prelude::*;
-use tracing::debug;
 
 use crate::config::MonitorSelection;
 
@@ -26,7 +25,9 @@ impl MonitorManager {
             MonitorSelection::Named => {
                 if let Some(target_name) = name {
                     for i in 0..monitors.n_items() {
-                        if let Some(monitor) = monitors.item(i).and_then(|m| m.downcast::<Monitor>().ok()) {
+                        if let Some(monitor) =
+                            monitors.item(i).and_then(|m| m.downcast::<Monitor>().ok())
+                        {
                             if let Some(connector) = monitor.connector() {
                                 if connector == target_name {
                                     return Some(monitor);

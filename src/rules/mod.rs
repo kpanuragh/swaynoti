@@ -1,5 +1,7 @@
-mod matcher;
 mod actions;
+mod matcher;
 
-pub use matcher::RuleMatcher;
+#[allow(unused_imports)]
 pub use actions::apply_rule_actions;
+#[allow(unused_imports)]
+pub use matcher::RuleMatcher;

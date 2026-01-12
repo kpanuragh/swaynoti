@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use chrono::{Datelike, Local, NaiveTime, Weekday as ChronoWeekday};
+use std::sync::Arc;
 use tokio::time::{interval, Duration};
 use tracing::{debug, info};
 
@@ -57,9 +57,11 @@ impl DndScheduler {
 
             // Check if today is a scheduled day
             let is_scheduled_day = self.config.schedule_days.is_empty()
-                || self.config.schedule_days.iter().any(|d| {
-                    Self::weekday_matches(d, current_weekday)
-                });
+                || self
+                    .config
+                    .schedule_days
+                    .iter()
+                    .any(|d| Self::weekday_matches(d, current_weekday));
 
             if !is_scheduled_day {
                 self.state.disable_scheduled();
@@ -84,9 +86,9 @@ impl DndScheduler {
     }
 
     fn parse_time(&self, time_str: &Option<String>) -> Option<NaiveTime> {
-        time_str.as_ref().and_then(|s| {
-            NaiveTime::parse_from_str(s, "%H:%M").ok()
-        })
+        time_str
+            .as_ref()
+            .and_then(|s| NaiveTime::parse_from_str(s, "%H:%M").ok())
     }
 
     fn weekday_matches(config_day: &Weekday, chrono_day: ChronoWeekday) -> bool {

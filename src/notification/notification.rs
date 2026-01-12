@@ -1,5 +1,5 @@
-use chrono::{DateTime, Utc};
 use super::Urgency;
+use chrono::{DateTime, Utc};
 
 /// Core notification structure
 #[derive(Debug, Clone)]
@@ -43,6 +43,7 @@ pub struct Notification {
 
 impl Notification {
     /// Create a new notification with the given parameters
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: u32,
         app_name: String,

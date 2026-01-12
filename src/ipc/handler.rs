@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::notification::NotificationManager;
 use crate::dnd::DndState;
+use crate::notification::NotificationManager;
 
 use super::commands::{IpcCommand, IpcResponse};
 
@@ -20,7 +20,9 @@ impl IpcHandler {
     pub async fn handle(&self, command: IpcCommand) -> IpcResponse {
         match command {
             IpcCommand::Dismiss { id } => {
-                self.manager.close_notification(id, crate::notification::CloseReason::Dismissed).await;
+                self.manager
+                    .close_notification(id, crate::notification::CloseReason::Dismissed)
+                    .await;
                 IpcResponse::success()
             }
             IpcCommand::DismissAll => {
@@ -39,9 +41,7 @@ impl IpcHandler {
                 self.dnd_state.disable();
                 IpcResponse::success()
             }
-            IpcCommand::GetDndStatus => {
-                IpcResponse::with_data(self.dnd_state.is_enabled())
-            }
+            IpcCommand::GetDndStatus => IpcResponse::with_data(self.dnd_state.is_enabled()),
             IpcCommand::ShowHistory => {
                 // TODO: Implement history panel
                 IpcResponse::success()
@@ -50,22 +50,23 @@ impl IpcHandler {
                 // TODO: Implement history panel
                 IpcResponse::success()
             }
-            IpcCommand::GetCount => {
-                IpcResponse::with_data(self.manager.count())
-            }
+            IpcCommand::GetCount => IpcResponse::with_data(self.manager.count()),
             IpcCommand::ReloadConfig => {
                 // TODO: Implement config reload
                 IpcResponse::success()
             }
             IpcCommand::GetNotifications => {
                 let notifications = self.manager.get_visible_notifications();
-                let summaries: Vec<_> = notifications.iter()
-                    .map(|n| serde_json::json!({
-                        "id": n.id,
-                        "app": n.app_name,
-                        "summary": n.summary,
-                        "urgency": n.hints.urgency.to_string(),
-                    }))
+                let summaries: Vec<_> = notifications
+                    .iter()
+                    .map(|n| {
+                        serde_json::json!({
+                            "id": n.id,
+                            "app": n.app_name,
+                            "summary": n.summary,
+                            "urgency": n.hints.urgency.to_string(),
+                        })
+                    })
                     .collect();
                 IpcResponse::with_data(summaries)
             }

@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use async_channel::Receiver;
+use tracing::info;
 use zbus::connection::Builder;
 use zbus::Connection;
-use tracing::info;
 
 use super::interface::NotificationServer;
 use crate::notification::{CloseReason, NotificationManager};

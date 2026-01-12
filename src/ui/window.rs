@@ -1,15 +1,11 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::Arc;
 
 use async_channel::Sender;
 use gtk4::prelude::*;
 use gtk4::{Application, Window};
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
-use parking_lot::RwLock;
 use tracing::{debug, info};
 
-use crate::config::{Anchor, Config, StackingMode};
+use crate::config::{Anchor, Config};
 use crate::notification::{ActionEvent, Notification};
 
 use super::NotificationWidget;
@@ -19,6 +15,7 @@ pub struct NotificationWindow {
     window: Window,
     notification_id: u32,
     widget: NotificationWidget,
+    #[allow(dead_code)]
     action_sender: Sender<ActionEvent>,
 }
 
@@ -194,7 +191,10 @@ impl NotificationWindow {
     /// Show the window
     pub fn show(&self) {
         self.window.present();
-        info!("Showing notification window for id={}", self.notification_id);
+        info!(
+            "Showing notification window for id={}",
+            self.notification_id
+        );
     }
 
     /// Hide and destroy the window

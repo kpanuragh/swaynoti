@@ -10,8 +10,7 @@ pub struct ConfigLoader;
 impl ConfigLoader {
     /// Get the configuration directory path
     pub fn config_dir() -> Option<PathBuf> {
-        ProjectDirs::from("org", "swaynoti", "swaynoti")
-            .map(|dirs| dirs.config_dir().to_path_buf())
+        ProjectDirs::from("org", "swaynoti", "swaynoti").map(|dirs| dirs.config_dir().to_path_buf())
     }
 
     /// Get the default config file path
@@ -21,8 +20,7 @@ impl ConfigLoader {
 
     /// Get the data directory path (for history, etc.)
     pub fn data_dir() -> Option<PathBuf> {
-        ProjectDirs::from("org", "swaynoti", "swaynoti")
-            .map(|dirs| dirs.data_dir().to_path_buf())
+        ProjectDirs::from("org", "swaynoti", "swaynoti").map(|dirs| dirs.data_dir().to_path_buf())
     }
 
     /// Load configuration from the default path or create default
@@ -65,8 +63,7 @@ impl ConfigLoader {
                 .with_context(|| format!("Failed to create config directory: {:?}", parent))?;
         }
 
-        let content = toml::to_string_pretty(config)
-            .context("Failed to serialize config")?;
+        let content = toml::to_string_pretty(config).context("Failed to serialize config")?;
 
         std::fs::write(path, content)
             .with_context(|| format!("Failed to write config file: {:?}", path))?;
@@ -77,8 +74,7 @@ impl ConfigLoader {
 
     /// Create default configuration file if it doesn't exist
     pub fn ensure_config_exists() -> Result<PathBuf> {
-        let path = Self::config_path()
-            .context("Could not determine config directory")?;
+        let path = Self::config_path().context("Could not determine config directory")?;
 
         if !path.exists() {
             warn!("Creating default configuration at {:?}", path);

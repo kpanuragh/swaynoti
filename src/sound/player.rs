@@ -34,11 +34,10 @@ impl SoundPlayer {
 
     pub fn play_sound_name(&self, name: &str) -> Result<(), Box<dyn std::error::Error>> {
         // Try common locations for sound themes
-        let xdg_data_home = std::env::var("XDG_DATA_HOME")
-            .unwrap_or_else(|_| {
-                let home = std::env::var("HOME").unwrap_or_default();
-                format!("{}/.local/share", home)
-            });
+        let xdg_data_home = std::env::var("XDG_DATA_HOME").unwrap_or_else(|_| {
+            let home = std::env::var("HOME").unwrap_or_default();
+            format!("{}/.local/share", home)
+        });
 
         let search_paths = [
             format!("{}/sounds", xdg_data_home),

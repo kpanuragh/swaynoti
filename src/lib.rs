@@ -1,11 +1,13 @@
+#![allow(dead_code)]
+
 pub mod config;
 pub mod dbus;
-pub mod notification;
-pub mod ui;
-pub mod positioning;
-pub mod ipc;
-pub mod rules;
 pub mod dnd;
+pub mod ipc;
+pub mod notification;
+pub mod positioning;
+pub mod rules;
+pub mod ui;
 
 #[cfg(feature = "sound")]
 pub mod sound;
