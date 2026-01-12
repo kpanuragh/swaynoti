@@ -33,7 +33,7 @@ rm -rf %{buildroot}
 
 # Create directories
 mkdir -p %{buildroot}%{_bindir}
-mkdir -p %{buildroot}%{_userunitdir}
+mkdir -p %{buildroot}/usr/lib/systemd/user
 mkdir -p %{buildroot}%{_datadir}/dbus-1/services
 mkdir -p %{buildroot}%{_sysconfdir}/swaynoti
 mkdir -p %{buildroot}%{_docdir}/%{name}
@@ -43,7 +43,7 @@ install -m 755 swaynoti %{buildroot}%{_bindir}/swaynoti
 install -m 755 swaynotictl %{buildroot}%{_bindir}/swaynotictl
 
 # Install systemd user service
-install -m 644 systemd/swaynoti.service %{buildroot}%{_userunitdir}/swaynoti.service
+install -m 644 systemd/swaynoti.service %{buildroot}/usr/lib/systemd/user/swaynoti.service
 
 # Install D-Bus service
 install -m 644 systemd/org.freedesktop.Notifications.service %{buildroot}%{_datadir}/dbus-1/services/
@@ -55,7 +55,7 @@ cp -r config/themes %{buildroot}%{_sysconfdir}/swaynoti/
 %files
 %{_bindir}/swaynoti
 %{_bindir}/swaynotictl
-%{_userunitdir}/swaynoti.service
+/usr/lib/systemd/user/swaynoti.service
 %{_datadir}/dbus-1/services/org.freedesktop.Notifications.service
 %config(noreplace) %{_sysconfdir}/swaynoti/config.toml
 %{_sysconfdir}/swaynoti/themes/
