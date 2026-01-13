@@ -10,10 +10,15 @@ A modern, lightweight notification daemon for Wayland compositors.
 - **Full FreeDesktop Notifications Specification** support
 - **Native Wayland** support via GTK4 + layer-shell
 - **Works with all Wayland compositors**: Sway, Hyprland, River, and more
+- **Notification Center** with history grouped by app
+- **MPRIS Media Player** widget with album art and playback controls
+- **Click-to-focus** - click notifications to focus the source app
+- **Action buttons** support for interactive notifications
+- **Progress bars** for download/transfer notifications
+- **Sound notifications** with per-urgency sound files
 - **TOML configuration** with CSS theming
 - **Per-application rules** with regex matching
 - **Do Not Disturb** mode with scheduling
-- **Notification history** (coming soon)
 - **Multi-monitor support**
 - **IPC control** via `swaynotictl`
 
@@ -133,6 +138,12 @@ critical = 0  # 0 = never expires
 enabled = true
 max_entries = 100
 
+[sound]
+enabled = true
+sound_low = "~/.config/swaynoti/sounds/low.wav"
+sound_normal = "~/.config/swaynoti/sounds/normal.wav"
+sound_critical = "~/.config/swaynoti/sounds/critical.wav"
+
 # Per-app rules
 [[rules]]
 [rules.criteria]
@@ -177,6 +188,18 @@ Then reference it in your config:
 theme = "~/.config/swaynoti/theme.css"
 ```
 
+### Notification Center
+
+The notification center provides a panel showing your notification history grouped by application. It includes:
+
+- **History list** - All notifications grouped by app with timestamps
+- **MPRIS Media Widget** - Shows currently playing media from Firefox, Spotify, VLC, etc.
+- **Playback controls** - Previous, Play/Pause, Next buttons
+- **Album art** display
+- **Clear All** button to remove all history
+
+Toggle with: `swaynotictl toggle-center`
+
 ### Control Commands
 
 ```bash
@@ -197,6 +220,15 @@ swaynotictl toggle-dnd
 
 # Check DND status
 swaynotictl dnd-status
+
+# Toggle Notification Center
+swaynotictl toggle-center
+
+# Show Notification Center
+swaynotictl show-center
+
+# Hide Notification Center
+swaynotictl hide-center
 ```
 
 ### Waybar Integration
@@ -207,7 +239,8 @@ Add to your waybar config:
     "exec": "swaynotictl count",
     "interval": 1,
     "format": " {}",
-    "on-click": "swaynotictl toggle-dnd"
+    "on-click": "swaynotictl toggle-center",
+    "on-click-right": "swaynotictl toggle-dnd"
 }
 ```
 
