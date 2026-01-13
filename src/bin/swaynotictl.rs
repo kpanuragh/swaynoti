@@ -43,6 +43,12 @@ enum Command {
     ShowHistory,
     /// Hide notification history panel
     HideHistory,
+    /// Toggle notification center panel
+    ToggleCenter,
+    /// Show notification center panel
+    ShowCenter,
+    /// Hide notification center panel
+    HideCenter,
     /// Get count of active notifications
     Count,
     /// Reload configuration
@@ -69,6 +75,9 @@ enum IpcCommand {
     GetDndStatus,
     ShowHistory,
     HideHistory,
+    ToggleCenter,
+    ShowCenter,
+    HideCenter,
     GetCount,
     ReloadConfig,
     GetNotifications,
@@ -120,6 +129,9 @@ fn main() -> Result<()> {
         Command::DndStatus => IpcCommand::GetDndStatus,
         Command::ShowHistory => IpcCommand::ShowHistory,
         Command::HideHistory => IpcCommand::HideHistory,
+        Command::ToggleCenter => IpcCommand::ToggleCenter,
+        Command::ShowCenter => IpcCommand::ShowCenter,
+        Command::HideCenter => IpcCommand::HideCenter,
         Command::Count => IpcCommand::GetCount,
         Command::Reload => IpcCommand::ReloadConfig,
         Command::List => IpcCommand::GetNotifications,

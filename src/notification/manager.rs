@@ -22,6 +22,12 @@ pub enum UiEvent {
     Close(u32),
     /// Reposition all notifications
     Reposition,
+    /// Show notification center
+    ShowCenter,
+    /// Hide notification center
+    HideCenter,
+    /// Toggle notification center
+    ToggleCenter,
 }
 
 /// Events sent from UI back to the manager
@@ -35,6 +41,12 @@ pub enum ActionEvent {
     Hovered { id: u32 },
     /// Mouse left notification
     Unhovered { id: u32 },
+    /// Focus the app that sent the notification
+    FocusApp { id: u32, app_name: String },
+    /// Inline reply submitted
+    InlineReply { id: u32, text: String },
+    /// Default action triggered (click on body)
+    DefaultAction { id: u32 },
 }
 
 /// Reason for closing a notification (FreeDesktop spec)
@@ -251,6 +263,20 @@ impl NotificationManager {
     /// Get the count of active notifications
     pub fn count(&self) -> usize {
         self.notifications.read().len()
+    }
+
+    /// Get all notification IDs
+    pub fn get_all_ids(&self) -> Vec<u32> {
+        self.notifications.read().keys().copied().collect()
+    }
+
+    /// Dismiss all notifications
+    pub async fn dismiss_all(&self) {
+        let ids = self.get_all_ids();
+        for id in ids {
+            self.close_notification(id, CloseReason::Dismissed).await;
+        }
+        info!("Dismissed all notifications");
     }
 
     /// Handle action invoked event

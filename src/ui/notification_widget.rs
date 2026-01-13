@@ -1,17 +1,23 @@
+use async_channel::Sender;
 use gtk4::prelude::*;
-use gtk4::{Align, Box as GtkBox, Button, Image, Label, Orientation, ProgressBar, Widget};
+use gtk4::{Align, Box as GtkBox, Button, Entry, Image, Label, Orientation, ProgressBar, Widget};
 use tracing::debug;
 
 use crate::config::Config;
-use crate::notification::Notification;
+use crate::notification::{ActionEvent, Notification};
 
 /// Widget for displaying a single notification
 pub struct NotificationWidget {
     container: GtkBox,
+    notification_id: u32,
 }
 
 impl NotificationWidget {
-    pub fn new(notification: &Notification, config: &Config) -> Self {
+    pub fn new(
+        notification: &Notification,
+        config: &Config,
+        action_sender: Sender<ActionEvent>,
+    ) -> Self {
         let container = GtkBox::new(Orientation::Horizontal, 12);
         container.add_css_class("notification");
         container.add_css_class(notification.hints.urgency.css_class());
@@ -72,8 +78,14 @@ impl NotificationWidget {
 
         // Action buttons
         if !notification.actions.is_empty() {
-            let actions_box = Self::create_actions(notification);
+            let actions_box = Self::create_actions(notification, action_sender.clone());
             content_box.append(&actions_box);
+        }
+
+        // Inline reply (for messaging apps with inline-reply hint)
+        if notification.hints.inline_reply {
+            let reply_box = Self::create_inline_reply(notification.id, action_sender.clone());
+            content_box.append(&reply_box);
         }
 
         container.append(&content_box);
@@ -84,9 +96,23 @@ impl NotificationWidget {
         close_button.set_icon_name("window-close-symbolic");
         close_button.set_valign(Align::Start);
         close_button.set_tooltip_text(Some("Dismiss"));
+
+        // Connect close button to dismiss
+        let sender = action_sender.clone();
+        let id = notification.id;
+        close_button.connect_clicked(move |_| {
+            debug!("Close button clicked for notification {}", id);
+            let sender = sender.clone();
+            glib::spawn_future_local(async move {
+                let _ = sender.send(ActionEvent::Dismissed { id }).await;
+            });
+        });
         container.append(&close_button);
 
-        Self { container }
+        Self {
+            container,
+            notification_id: notification.id,
+        }
     }
 
     /// Create the notification icon
@@ -147,7 +173,7 @@ impl NotificationWidget {
     }
 
     /// Create action buttons
-    fn create_actions(notification: &Notification) -> GtkBox {
+    fn create_actions(notification: &Notification, action_sender: Sender<ActionEvent>) -> GtkBox {
         let actions_box = GtkBox::new(Orientation::Horizontal, 6);
         actions_box.add_css_class("actions");
         actions_box.set_margin_top(8);
@@ -163,19 +189,94 @@ impl NotificationWidget {
 
             let action_key = key.clone();
             let notification_id = notification.id;
+            let sender = action_sender.clone();
 
             button.connect_clicked(move |_| {
                 debug!(
                     "Action '{}' clicked on notification {}",
                     action_key, notification_id
                 );
-                // Action will be handled via callback
+                let sender = sender.clone();
+                let key = action_key.clone();
+                glib::spawn_future_local(async move {
+                    let _ = sender
+                        .send(ActionEvent::ActionInvoked {
+                            id: notification_id,
+                            action_key: key,
+                        })
+                        .await;
+                });
             });
 
             actions_box.append(&button);
         }
 
         actions_box
+    }
+
+    /// Create inline reply entry
+    fn create_inline_reply(notification_id: u32, action_sender: Sender<ActionEvent>) -> GtkBox {
+        let reply_box = GtkBox::new(Orientation::Horizontal, 6);
+        reply_box.add_css_class("inline-reply");
+        reply_box.set_margin_top(8);
+
+        let entry = Entry::new();
+        entry.set_placeholder_text(Some("Type a reply..."));
+        entry.set_hexpand(true);
+        entry.add_css_class("reply-entry");
+
+        let send_button = Button::with_label("Send");
+        send_button.add_css_class("reply-send");
+
+        // Send on button click
+        let sender = action_sender.clone();
+        let entry_clone = entry.clone();
+        send_button.connect_clicked(move |_| {
+            let text = entry_clone.text().to_string();
+            if !text.is_empty() {
+                debug!(
+                    "Inline reply for notification {}: {}",
+                    notification_id, text
+                );
+                let sender = sender.clone();
+                glib::spawn_future_local(async move {
+                    let _ = sender
+                        .send(ActionEvent::InlineReply {
+                            id: notification_id,
+                            text,
+                        })
+                        .await;
+                });
+                entry_clone.set_text("");
+            }
+        });
+
+        // Send on Enter key
+        let sender = action_sender.clone();
+        entry.connect_activate(move |entry| {
+            let text = entry.text().to_string();
+            if !text.is_empty() {
+                debug!(
+                    "Inline reply (enter) for notification {}: {}",
+                    notification_id, text
+                );
+                let sender = sender.clone();
+                glib::spawn_future_local(async move {
+                    let _ = sender
+                        .send(ActionEvent::InlineReply {
+                            id: notification_id,
+                            text,
+                        })
+                        .await;
+                });
+                entry.set_text("");
+            }
+        });
+
+        reply_box.append(&entry);
+        reply_box.append(&send_button);
+
+        reply_box
     }
 
     /// Get the container widget
@@ -191,5 +292,10 @@ impl NotificationWidget {
         self.container.remove_css_class("critical");
         self.container
             .add_css_class(notification.hints.urgency.css_class());
+    }
+
+    /// Get the notification ID
+    pub fn id(&self) -> u32 {
+        self.notification_id
     }
 }

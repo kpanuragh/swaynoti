@@ -2,12 +2,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
+use async_channel::Sender;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use tracing::{debug, error, info, warn};
 
 use crate::dnd::DndState;
-use crate::notification::NotificationManager;
+use crate::notification::{NotificationManager, UiEvent};
 
 use super::commands::IpcCommand;
 use super::handler::IpcHandler;
@@ -24,6 +25,16 @@ pub async fn start_ipc_server(
     dnd_state: Arc<DndState>,
     socket_path: Option<PathBuf>,
 ) -> Result<()> {
+    start_ipc_server_with_ui(manager, dnd_state, socket_path, None).await
+}
+
+/// Start the IPC server with UI sender for notification center
+pub async fn start_ipc_server_with_ui(
+    manager: Arc<NotificationManager>,
+    dnd_state: Arc<DndState>,
+    socket_path: Option<PathBuf>,
+    ui_sender: Option<Sender<UiEvent>>,
+) -> Result<()> {
     let path = socket_path.unwrap_or_else(default_socket_path);
 
     // Remove existing socket if present
@@ -34,7 +45,13 @@ pub async fn start_ipc_server(
     let listener = UnixListener::bind(&path)?;
     info!("IPC server listening on {:?}", path);
 
-    let handler = Arc::new(IpcHandler::new(manager, dnd_state));
+    let handler = IpcHandler::new(manager, dnd_state);
+    let handler = if let Some(sender) = ui_sender {
+        handler.with_ui_sender(sender)
+    } else {
+        handler
+    };
+    let handler = Arc::new(handler);
 
     loop {
         match listener.accept().await {

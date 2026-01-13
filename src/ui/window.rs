@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use async_channel::Sender;
 use gtk4::prelude::*;
 use gtk4::{Application, Window};
@@ -13,8 +15,8 @@ use super::NotificationWidget;
 pub struct NotificationWindow {
     window: Window,
     notification_id: u32,
+    app_name: String,
     widget: NotificationWidget,
-    #[allow(dead_code)]
     action_sender: Sender<ActionEvent>,
 }
 
@@ -48,7 +50,7 @@ impl NotificationWindow {
         // Set anchors based on config
         Self::apply_anchors(&window, &config.positioning.anchor);
 
-        // Set margins
+        // Apply margins
         Self::apply_margins(&window, config, index);
 
         // No keyboard focus
@@ -61,7 +63,7 @@ impl NotificationWindow {
         window.set_default_width(config.appearance.width as i32);
 
         // Create notification widget
-        let widget = NotificationWidget::new(notification, config);
+        let widget = NotificationWidget::new(notification, config, action_sender.clone());
         window.set_child(Some(widget.widget()));
 
         // Add window CSS class
@@ -70,11 +72,13 @@ impl NotificationWindow {
         // Setup event handlers
         let sender = action_sender.clone();
         let id = notification.id;
-        Self::setup_event_handlers(&window, id, sender);
+        let app_name = notification.app_name.clone();
+        Self::setup_event_handlers(&window, id, app_name.clone(), sender);
 
         Self {
             window,
             notification_id: notification.id,
+            app_name: notification.app_name.clone(),
             widget,
             action_sender,
         }
@@ -139,29 +143,91 @@ impl NotificationWindow {
     }
 
     /// Setup event handlers for the window
-    fn setup_event_handlers(window: &Window, id: u32, sender: Sender<ActionEvent>) {
-        // Click handler (dismiss or default action)
+    fn setup_event_handlers(
+        window: &Window,
+        id: u32,
+        app_name: String,
+        sender: Sender<ActionEvent>,
+    ) {
+        // Track swipe for dismiss gesture
+        let swipe_start_x = Cell::new(0.0f64);
+
+        // Left click - focus app window
         let click = gtk4::GestureClick::new();
         let sender_click = sender.clone();
+        let app_name_click = app_name.clone();
         click.connect_released(move |gesture, _, _, _| {
             if gesture.current_button() == gtk4::gdk::BUTTON_PRIMARY {
-                debug!("Notification {} clicked", id);
+                debug!(
+                    "Notification {} clicked - focusing app {}",
+                    id, app_name_click
+                );
                 let sender = sender_click.clone();
+                let app = app_name_click.clone();
                 glib::spawn_future_local(async move {
-                    let _ = sender.send(ActionEvent::Dismissed { id }).await;
+                    // Send focus event
+                    let _ = sender
+                        .send(ActionEvent::FocusApp {
+                            id,
+                            app_name: app.clone(),
+                        })
+                        .await;
+                    // Also trigger default action
+                    let _ = sender.send(ActionEvent::DefaultAction { id }).await;
                 });
             }
         });
         window.add_controller(click);
 
-        // Right-click handler (context menu)
+        // Middle click - dismiss
+        let middle_click = gtk4::GestureClick::new();
+        middle_click.set_button(gtk4::gdk::BUTTON_MIDDLE);
+        let sender_middle = sender.clone();
+        middle_click.connect_released(move |_, _, _, _| {
+            debug!("Middle click - dismissing notification {}", id);
+            let sender = sender_middle.clone();
+            glib::spawn_future_local(async move {
+                let _ = sender.send(ActionEvent::Dismissed { id }).await;
+            });
+        });
+        window.add_controller(middle_click);
+
+        // Right-click handler (context menu / dismiss)
         let right_click = gtk4::GestureClick::new();
         right_click.set_button(gtk4::gdk::BUTTON_SECONDARY);
-        right_click.connect_released(move |_, _, x, y| {
-            debug!("Right-click on notification {} at ({}, {})", id, x, y);
-            // TODO: Show context menu
+        let sender_right = sender.clone();
+        right_click.connect_released(move |_, _, _, _| {
+            debug!("Right-click - dismissing notification {}", id);
+            let sender = sender_right.clone();
+            glib::spawn_future_local(async move {
+                let _ = sender.send(ActionEvent::Dismissed { id }).await;
+            });
         });
         window.add_controller(right_click);
+
+        // Swipe gesture for dismiss
+        let swipe = gtk4::GestureDrag::new();
+        let sender_swipe = sender.clone();
+
+        swipe.connect_drag_begin(move |_, x, _| {
+            swipe_start_x.set(x);
+        });
+
+        let swipe_threshold = 100.0; // Pixels to swipe for dismiss
+        swipe.connect_drag_end(move |gesture, offset_x, _| {
+            if offset_x.abs() > swipe_threshold {
+                debug!(
+                    "Swipe dismiss on notification {} (offset: {})",
+                    id, offset_x
+                );
+                let sender = sender_swipe.clone();
+                glib::spawn_future_local(async move {
+                    let _ = sender.send(ActionEvent::Dismissed { id }).await;
+                });
+            }
+            gesture.reset();
+        });
+        window.add_controller(swipe);
 
         // Hover handlers
         let motion = gtk4::EventControllerMotion::new();
@@ -215,6 +281,11 @@ impl NotificationWindow {
     /// Get the notification ID
     pub fn id(&self) -> u32 {
         self.notification_id
+    }
+
+    /// Get the app name
+    pub fn app_name(&self) -> &str {
+        &self.app_name
     }
 
     /// Get the underlying GTK window

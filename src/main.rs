@@ -8,10 +8,13 @@ use parking_lot::RwLock;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
+mod compositor;
 mod config;
 mod dbus;
 mod dnd;
+mod history;
 mod ipc;
+mod mpris;
 mod notification;
 mod positioning;
 mod rules;
@@ -20,9 +23,12 @@ mod ui;
 #[cfg(feature = "sound")]
 mod sound;
 
+use compositor::CompositorIpc;
 use config::ConfigLoader;
-use dbus::start_dbus_server;
+use dbus::start_dbus_server_with_history;
 use dnd::DndState;
+use history::HistoryStore;
+use ipc::start_ipc_server_with_ui;
 use notification::{ActionEvent, NotificationManager, UiEvent};
 use ui::SwaynotiApp;
 
@@ -72,6 +78,16 @@ fn main() -> Result<()> {
     let config = Arc::new(RwLock::new(config));
     info!("Configuration loaded");
 
+    // Initialize history store
+    let history_max = config.read().history.max_entries;
+    let history_store = match HistoryStore::new(history_max) {
+        Ok(store) => Some(Arc::new(store)),
+        Err(e) => {
+            tracing::warn!("Failed to initialize history store: {}", e);
+            None
+        }
+    };
+
     // Create communication channels
     let (ui_sender, ui_receiver) = async_channel::unbounded::<UiEvent>();
     let (action_sender, action_receiver) = async_channel::unbounded::<ActionEvent>();
@@ -84,7 +100,7 @@ fn main() -> Result<()> {
     // Create notification manager
     let manager = Arc::new(NotificationManager::new(
         config.clone(),
-        ui_sender,
+        ui_sender.clone(),
         close_sender,
     ));
 
@@ -95,14 +111,15 @@ fn main() -> Result<()> {
 
     // Clone for async tasks
     let dbus_manager = manager.clone();
+    let dbus_history = history_store.clone();
     let ipc_manager = manager.clone();
     let ipc_dnd = dnd_state.clone();
     let ipc_config = config.clone();
 
     // Spawn async tasks
     runtime.spawn(async move {
-        // Start D-Bus server
-        match start_dbus_server(dbus_manager, close_receiver).await {
+        // Start D-Bus server with history
+        match start_dbus_server_with_history(dbus_manager, close_receiver, dbus_history).await {
             Ok(_connection) => {
                 // Keep the connection alive forever
                 // The connection must stay in scope for the D-Bus name to remain registered
@@ -116,10 +133,13 @@ fn main() -> Result<()> {
         }
     });
 
-    // Start IPC server
+    // Start IPC server with UI sender for notification center commands
+    let ipc_ui_sender = ui_sender.clone();
     runtime.spawn(async move {
         let socket_path = ipc_config.read().ipc.socket_path.clone();
-        if let Err(e) = ipc::start_ipc_server(ipc_manager, ipc_dnd, socket_path).await {
+        if let Err(e) =
+            start_ipc_server_with_ui(ipc_manager, ipc_dnd, socket_path, Some(ipc_ui_sender)).await
+        {
             tracing::error!("IPC server error: {}", e);
         }
     });
@@ -134,13 +154,19 @@ fn main() -> Result<()> {
 
     // Handle action events from UI
     let action_manager = manager.clone();
+    let action_history = history_store.clone();
     runtime.spawn(async move {
         while let Ok(event) = action_receiver.recv().await {
             match event {
                 ActionEvent::ActionInvoked { id, action_key } => {
+                    info!("Action '{}' invoked on notification {}", action_key, id);
                     action_manager.invoke_action(id, &action_key).await;
                 }
                 ActionEvent::Dismissed { id } => {
+                    info!("Notification {} dismissed by user", id);
+                    if let Some(ref store) = action_history {
+                        let _ = store.mark_dismissed(id);
+                    }
                     action_manager
                         .close_notification(id, notification::CloseReason::Dismissed)
                         .await;
@@ -150,6 +176,28 @@ fn main() -> Result<()> {
                 }
                 ActionEvent::Unhovered { id } => {
                     action_manager.set_hovered(id, false);
+                }
+                ActionEvent::FocusApp { id, app_name } => {
+                    info!("Focusing app '{}' for notification {}", app_name, id);
+                    CompositorIpc::focus_window(&app_name);
+                    // Also dismiss the notification after focusing
+                    action_manager
+                        .close_notification(id, notification::CloseReason::Dismissed)
+                        .await;
+                }
+                ActionEvent::InlineReply { id, text } => {
+                    info!("Inline reply for notification {}: {}", id, text);
+                    // Send the reply as an action with the text
+                    action_manager
+                        .invoke_action(id, &format!("inline-reply:{}", text))
+                        .await;
+                    action_manager
+                        .close_notification(id, notification::CloseReason::Dismissed)
+                        .await;
+                }
+                ActionEvent::DefaultAction { id } => {
+                    info!("Default action triggered for notification {}", id);
+                    action_manager.invoke_action(id, "default").await;
                 }
             }
         }
@@ -161,7 +209,7 @@ fn main() -> Result<()> {
     gtk4::init().expect("Failed to initialize GTK4");
 
     // Create and run the GTK application
-    let app = SwaynotiApp::new(config, action_sender);
+    let app = SwaynotiApp::new(config, action_sender, history_store);
 
     info!("Starting GTK application");
     app.run(ui_receiver);

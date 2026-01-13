@@ -8,6 +8,7 @@ use zbus::object_server::SignalEmitter;
 use zbus::zvariant::{OwnedValue, Value};
 
 use super::types::{ServerInfo, CAPABILITIES};
+use crate::history::{HistoryEntry, HistoryStore};
 use crate::notification::{
     CloseReason, ImageData, Notification, NotificationHints, NotificationManager, Urgency,
 };
@@ -17,6 +18,7 @@ pub struct NotificationServer {
     manager: Arc<NotificationManager>,
     #[allow(dead_code)]
     close_receiver: Receiver<(u32, CloseReason)>,
+    history_store: Option<Arc<HistoryStore>>,
 }
 
 impl NotificationServer {
@@ -27,7 +29,13 @@ impl NotificationServer {
         Self {
             manager,
             close_receiver,
+            history_store: None,
         }
+    }
+
+    pub fn with_history(mut self, store: Arc<HistoryStore>) -> Self {
+        self.history_store = Some(store);
+        self
     }
 
     /// Parse hints from D-Bus variant dictionary
@@ -186,12 +194,42 @@ impl NotificationServer {
             app_icon.to_string(),
             summary.to_string(),
             body.to_string(),
-            actions,
-            parsed_hints,
+            actions.clone(),
+            parsed_hints.clone(),
             expire_timeout,
         );
 
-        self.manager.add_notification(notification).await
+        let id = self.manager.add_notification(notification).await;
+
+        // Save to history if not transient
+        if !parsed_hints.transient {
+            if let Some(ref store) = self.history_store {
+                let entry = HistoryEntry {
+                    id,
+                    app_name: app_name.to_string(),
+                    summary: summary.to_string(),
+                    body: body.to_string(),
+                    icon: if app_icon.is_empty() {
+                        None
+                    } else {
+                        Some(app_icon.to_string())
+                    },
+                    urgency: parsed_hints.urgency.to_string(),
+                    timestamp: chrono::Utc::now(),
+                    actions: actions
+                        .chunks(2)
+                        .filter_map(|c| c.first().cloned())
+                        .collect(),
+                    dismissed: false,
+                    expired: false,
+                };
+                if let Err(e) = store.add(&entry) {
+                    debug!("Failed to save notification to history: {}", e);
+                }
+            }
+        }
+
+        id
     }
 
     /// Closes the notification with the given ID

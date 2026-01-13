@@ -148,6 +148,9 @@ pub struct NotificationHints {
 
     /// Resident notification (stays until explicitly dismissed)
     pub resident: bool,
+
+    /// Inline reply support (for messaging apps)
+    pub inline_reply: bool,
 }
 
 /// Raw image data from D-Bus

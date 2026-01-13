@@ -28,6 +28,15 @@ pub enum IpcCommand {
     /// Hide notification history panel
     HideHistory,
 
+    /// Toggle notification center panel
+    ToggleCenter,
+
+    /// Show notification center panel
+    ShowCenter,
+
+    /// Hide notification center panel
+    HideCenter,
+
     /// Get count of active notifications
     GetCount,
 

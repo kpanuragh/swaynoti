@@ -224,6 +224,12 @@ pub struct DndConfig {
 pub struct SoundConfig {
     pub enabled: bool,
     pub default_sound: Option<PathBuf>,
+    /// Sound file for low urgency notifications
+    pub sound_low: Option<PathBuf>,
+    /// Sound file for normal urgency notifications
+    pub sound_normal: Option<PathBuf>,
+    /// Sound file for critical urgency notifications
+    pub sound_critical: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

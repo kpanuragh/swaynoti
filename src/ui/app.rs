@@ -9,8 +9,10 @@ use parking_lot::RwLock;
 use tracing::{debug, info};
 
 use crate::config::Config;
+use crate::history::HistoryStore;
 use crate::notification::{ActionEvent, Notification, UiEvent};
 
+use super::notification_center::NotificationCenter;
 use super::style::StyleManager;
 use super::window::NotificationWindow;
 
@@ -23,11 +25,16 @@ pub struct SwaynotiApp {
     style_manager: Rc<StyleManager>,
     windows: Rc<RefCell<HashMap<u32, NotificationWindow>>>,
     action_sender: Sender<ActionEvent>,
+    history_store: Option<Arc<HistoryStore>>,
 }
 
 impl SwaynotiApp {
     /// Create a new swaynoti application
-    pub fn new(config: Arc<RwLock<Config>>, action_sender: Sender<ActionEvent>) -> Self {
+    pub fn new(
+        config: Arc<RwLock<Config>>,
+        action_sender: Sender<ActionEvent>,
+        history_store: Option<Arc<HistoryStore>>,
+    ) -> Self {
         let app = Application::builder()
             .application_id(APP_ID)
             .flags(gio::ApplicationFlags::NON_UNIQUE)
@@ -42,6 +49,7 @@ impl SwaynotiApp {
             style_manager,
             windows,
             action_sender,
+            history_store,
         }
     }
 
@@ -55,10 +63,19 @@ impl SwaynotiApp {
         let config = self.config.clone();
         let windows = self.windows.clone();
         let action_sender = self.action_sender.clone();
+        let history_store = self.history_store.clone();
 
         // Spawn UI event handler on GLib main context
         glib::MainContext::default().spawn_local(async move {
-            Self::handle_ui_events(app, config, windows, action_sender, ui_receiver).await;
+            Self::handle_ui_events(
+                app,
+                config,
+                windows,
+                action_sender,
+                history_store,
+                ui_receiver,
+            )
+            .await;
         });
 
         // Run the GLib main loop (this blocks)
@@ -73,9 +90,14 @@ impl SwaynotiApp {
         config: Arc<RwLock<Config>>,
         windows: Rc<RefCell<HashMap<u32, NotificationWindow>>>,
         action_sender: Sender<ActionEvent>,
+        history_store: Option<Arc<HistoryStore>>,
         receiver: Receiver<UiEvent>,
     ) {
         info!("UI event handler started");
+
+        // Create notification center (lazily initialized)
+        let notification_center: Rc<RefCell<Option<NotificationCenter>>> =
+            Rc::new(RefCell::new(None));
 
         while let Ok(event) = receiver.recv().await {
             match event {
@@ -91,10 +113,59 @@ impl SwaynotiApp {
                 UiEvent::Reposition => {
                     Self::reposition_all(&config, &windows);
                 }
+                UiEvent::ShowCenter => {
+                    Self::ensure_notification_center(
+                        &app,
+                        &config,
+                        &history_store,
+                        &action_sender,
+                        &notification_center,
+                    );
+                    if let Some(ref mut center) = *notification_center.borrow_mut() {
+                        center.show();
+                    }
+                }
+                UiEvent::HideCenter => {
+                    if let Some(ref mut center) = *notification_center.borrow_mut() {
+                        center.hide();
+                    }
+                }
+                UiEvent::ToggleCenter => {
+                    Self::ensure_notification_center(
+                        &app,
+                        &config,
+                        &history_store,
+                        &action_sender,
+                        &notification_center,
+                    );
+                    if let Some(ref mut center) = *notification_center.borrow_mut() {
+                        center.toggle();
+                    }
+                }
             }
         }
 
         info!("UI event handler stopped");
+    }
+
+    /// Ensure notification center is created
+    fn ensure_notification_center(
+        app: &Application,
+        config: &Arc<RwLock<Config>>,
+        history_store: &Option<Arc<HistoryStore>>,
+        action_sender: &Sender<ActionEvent>,
+        notification_center: &Rc<RefCell<Option<NotificationCenter>>>,
+    ) {
+        if notification_center.borrow().is_none() {
+            let center = NotificationCenter::new(
+                app,
+                config.clone(),
+                history_store.clone(),
+                action_sender.clone(),
+            );
+            *notification_center.borrow_mut() = Some(center);
+            debug!("Notification center created");
+        }
     }
 
     /// Show a new notification

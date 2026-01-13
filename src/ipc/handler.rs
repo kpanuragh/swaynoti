@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
+use async_channel::Sender;
+
 use crate::dnd::DndState;
-use crate::notification::NotificationManager;
+use crate::notification::{NotificationManager, UiEvent};
 
 use super::commands::{IpcCommand, IpcResponse};
 
@@ -9,11 +11,22 @@ use super::commands::{IpcCommand, IpcResponse};
 pub struct IpcHandler {
     manager: Arc<NotificationManager>,
     dnd_state: Arc<DndState>,
+    ui_sender: Option<Sender<UiEvent>>,
 }
 
 impl IpcHandler {
     pub fn new(manager: Arc<NotificationManager>, dnd_state: Arc<DndState>) -> Self {
-        Self { manager, dnd_state }
+        Self {
+            manager,
+            dnd_state,
+            ui_sender: None,
+        }
+    }
+
+    /// Set the UI sender for notification center commands
+    pub fn with_ui_sender(mut self, sender: Sender<UiEvent>) -> Self {
+        self.ui_sender = Some(sender);
+        self
     }
 
     /// Handle an IPC command and return a response
@@ -26,7 +39,7 @@ impl IpcHandler {
                 IpcResponse::success()
             }
             IpcCommand::DismissAll => {
-                // TODO: Implement dismiss all
+                self.manager.dismiss_all().await;
                 IpcResponse::success()
             }
             IpcCommand::ToggleDnd => {
@@ -42,12 +55,22 @@ impl IpcHandler {
                 IpcResponse::success()
             }
             IpcCommand::GetDndStatus => IpcResponse::with_data(self.dnd_state.is_enabled()),
-            IpcCommand::ShowHistory => {
-                // TODO: Implement history panel
+            IpcCommand::ShowHistory | IpcCommand::ShowCenter => {
+                if let Some(ref sender) = self.ui_sender {
+                    let _ = sender.send(UiEvent::ShowCenter).await;
+                }
                 IpcResponse::success()
             }
-            IpcCommand::HideHistory => {
-                // TODO: Implement history panel
+            IpcCommand::HideHistory | IpcCommand::HideCenter => {
+                if let Some(ref sender) = self.ui_sender {
+                    let _ = sender.send(UiEvent::HideCenter).await;
+                }
+                IpcResponse::success()
+            }
+            IpcCommand::ToggleCenter => {
+                if let Some(ref sender) = self.ui_sender {
+                    let _ = sender.send(UiEvent::ToggleCenter).await;
+                }
                 IpcResponse::success()
             }
             IpcCommand::GetCount => IpcResponse::with_data(self.manager.count()),
