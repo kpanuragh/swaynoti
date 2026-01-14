@@ -1,6 +1,6 @@
 [package]
 name = "swaynoti"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "A modern Wayland notification daemon"
 license = "MIT"

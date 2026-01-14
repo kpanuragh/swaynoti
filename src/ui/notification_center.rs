@@ -46,8 +46,8 @@ impl NotificationCenter {
             .resizable(false)
             .build();
 
-        // Set minimum size
-        window.set_size_request(380, 400);
+        // Set width (height will be full screen via anchoring)
+        window.set_size_request(380, -1);
 
         // Initialize layer shell
         window.init_layer_shell();
@@ -55,13 +55,15 @@ impl NotificationCenter {
         window.set_keyboard_mode(KeyboardMode::OnDemand);
         window.set_exclusive_zone(0);
 
-        // Anchor to the right side of the screen (top and right only for floating panel)
+        // Anchor to top, right, and bottom for full height
         window.set_anchor(Edge::Top, true);
         window.set_anchor(Edge::Right, true);
+        window.set_anchor(Edge::Bottom, true);
 
         // Set margins
-        window.set_margin(Edge::Top, 50);
+        window.set_margin(Edge::Top, 10);
         window.set_margin(Edge::Right, 10);
+        window.set_margin(Edge::Bottom, 10);
 
         // Add CSS class
         window.add_css_class("notification-center");
