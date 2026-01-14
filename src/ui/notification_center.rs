@@ -46,8 +46,8 @@ impl NotificationCenter {
             .resizable(false)
             .build();
 
-        // Set width (height will be full screen via anchoring)
-        window.set_size_request(380, -1);
+        // Set width only - height determined by anchoring to top+bottom
+        window.set_default_size(380, 800);
 
         // Initialize layer shell
         window.init_layer_shell();
@@ -71,6 +71,8 @@ impl NotificationCenter {
         // Create main container
         let main_box = GtkBox::new(Orientation::Vertical, 0);
         main_box.add_css_class("notification-center-container");
+        main_box.set_vexpand(true);
+        main_box.set_hexpand(true);
 
         // Header
         let header = Self::create_header();
@@ -264,9 +266,10 @@ impl NotificationCenter {
         header_box.set_margin_top(4);
         header_box.set_margin_bottom(4);
 
-        // App icon
-        let icon = Image::from_icon_name(app_name);
-        icon.set_pixel_size(24);
+        // App icon - try lowercase name first, then original
+        let icon_name = app_name.to_lowercase().replace(' ', "-");
+        let icon = Image::from_icon_name(&icon_name);
+        icon.set_pixel_size(28);
         icon.add_css_class("app-icon");
         header_box.append(&icon);
 
