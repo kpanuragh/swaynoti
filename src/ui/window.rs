@@ -53,8 +53,9 @@ impl NotificationWindow {
         // Apply margins
         Self::apply_margins(&window, config, index);
 
-        // No keyboard focus
-        window.set_keyboard_mode(KeyboardMode::None);
+        // Enable keyboard focus on demand for inline reply and actions
+        // OnDemand means keyboard is only active when window is clicked
+        window.set_keyboard_mode(KeyboardMode::OnDemand);
 
         // Don't reserve screen space
         window.set_exclusive_zone(0);
@@ -162,18 +163,22 @@ impl NotificationWindow {
                     "Notification {} clicked - focusing app {}",
                     id, app_name_click
                 );
+                // Skip FocusApp for interactive elements (reply box, buttons)
+                // Let them handle the click normally
+                // Only focus the app if clicking on the message/notification area
                 let sender = sender_click.clone();
                 let app = app_name_click.clone();
                 glib::spawn_future_local(async move {
-                    // Send focus event
+                    // Only send focus event, don't trigger default action
+                    // This allows interactive elements like reply boxes to work
                     let _ = sender
                         .send(ActionEvent::FocusApp {
                             id,
-                            app_name: app.clone(),
+                            app_name: app,
                         })
                         .await;
-                    // Also trigger default action
-                    let _ = sender.send(ActionEvent::DefaultAction { id }).await;
+                    // Don't send DefaultAction here - let it only be triggered
+                    // by double-click or explicit action, not interfering with reply box
                 });
             }
         });
