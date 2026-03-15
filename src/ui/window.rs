@@ -123,7 +123,7 @@ impl NotificationWindow {
     fn apply_margins(window: &Window, config: &Config, index: usize) {
         let margin = &config.positioning.margin;
         let gap = config.appearance.gap as i32;
-        let estimated_height = 160; // Approximate notification height (with padding, icon, text, reply box)
+        let estimated_height = 200; // Approximate notification height (with padding, icon, text, reply box, margins)
 
         // Calculate stacking offset
         let stack_offset = (index as i32) * (estimated_height + gap);
