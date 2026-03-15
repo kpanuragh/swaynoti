@@ -49,12 +49,15 @@ impl HyprlandIpc {
 
     /// Focus a window by app name/class
     pub fn focus_window(app_name: &str) {
+        let app_lower = app_name.to_lowercase();
+
         // Try different matching strategies
         let strategies = [
             format!("dispatch focuswindow class:{}", app_name),
+            format!("dispatch focuswindow class:{}", app_lower),
             format!("dispatch focuswindow title:{}", app_name),
-            format!("dispatch focuswindow class:^{}$", app_name.to_lowercase()),
-            format!("dispatch focuswindow initialclass:{}", app_name),
+            format!("dispatch focuswindow class:^{}$", app_lower),
+            format!("dispatch focuswindow initialclass:{}", app_lower),
         ];
 
         for cmd in &strategies {
@@ -67,7 +70,56 @@ impl HyprlandIpc {
             }
         }
 
+        // Fallback: search all windows for fuzzy match
+        debug!("No direct match found, searching all windows for fuzzy match");
+        if let Some(windows) = Self::send_command("j/clients") {
+            if let Some(addr) = Self::find_window_by_fuzzy_match(&windows, app_name, &app_lower) {
+                debug!("Found matching window address: {}", addr);
+                if let Some(response) = Self::send_command(&format!("dispatch focuswindow address:{}", addr)) {
+                    if response.trim() == "ok" || response.is_empty() {
+                        info!("Focused window for app via fuzzy match: {}", app_name);
+                        return;
+                    }
+                }
+            }
+        }
+
         warn!("Could not focus window for app: {}", app_name);
+    }
+
+    /// Find window by fuzzy matching app name in class/title/initialclass
+    fn find_window_by_fuzzy_match(output: &str, app_name: &str, app_lower: &str) -> Option<String> {
+        // Parse hyprctl clients output format:
+        // Window <addr> -> <title>:
+        //   class: <class>
+        //   initialClass: <initialclass>
+        // etc.
+
+        let mut current_addr: Option<String> = None;
+
+        for line in output.lines() {
+            // Check for window header: "Window 5a04452b1f20 -> Alacritty:"
+            if line.starts_with("Window ") && line.contains("->") {
+                if let Some(addr) = line.strip_prefix("Window ").and_then(|rest| rest.split_whitespace().next()) {
+                    current_addr = Some(addr.to_string());
+                }
+            }
+
+            // Check if current window matches app name
+            if let Some(addr) = &current_addr {
+                let line_lower = line.to_lowercase();
+
+                // Match on class, initialClass, or title containing the app name
+                if line.contains("class:") || line.contains("initialClass:") || line.contains("title:") {
+                    if line_lower.contains(app_lower) || line.to_lowercase().contains(&app_name.to_lowercase()) {
+                        debug!("Found matching window: class/title contains '{}'", app_name);
+                        return Some(addr.clone());
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     /// Get list of windows
