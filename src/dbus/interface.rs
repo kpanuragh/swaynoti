@@ -107,6 +107,11 @@ impl NotificationServer {
                         result.resident = b;
                     }
                 }
+                "x-canonical-private-synchronous" => {
+                    // Enable inline reply for messaging apps
+                    // Value is typically "reply" or empty string
+                    result.inline_reply = true;
+                }
                 _ => {
                     debug!("Unknown hint: {}", key);
                 }

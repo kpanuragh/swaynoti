@@ -223,6 +223,9 @@ impl NotificationWidget {
         let entry = Entry::new();
         entry.set_placeholder_text(Some("Type a reply..."));
         entry.set_hexpand(true);
+        entry.set_editable(true);
+        entry.set_can_focus(true);
+        entry.set_focusable(true);
         entry.add_css_class("reply-entry");
 
         let send_button = Button::with_label("Send");
