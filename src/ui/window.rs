@@ -158,9 +158,11 @@ impl NotificationWindow {
         let sender_click = sender.clone();
         let app_name_click = app_name.clone();
         click.connect_released(move |gesture, _, _, _| {
-            if gesture.current_button() == gtk4::gdk::BUTTON_PRIMARY {
-                debug!(
-                    "Notification {} clicked - focusing app {}",
+            let button = gesture.current_button();
+            info!("🖱️  Notification {} received click with button {}", id, button);
+            if button == gtk4::gdk::BUTTON_PRIMARY {
+                info!(
+                    "✓ Left click detected on notification {} - will focus app '{}'",
                     id, app_name_click
                 );
                 // Skip FocusApp for interactive elements (reply box, buttons)
@@ -169,14 +171,19 @@ impl NotificationWindow {
                 let sender = sender_click.clone();
                 let app = app_name_click.clone();
                 glib::spawn_future_local(async move {
+                    info!("  → Sending FocusApp event for app '{}'", app);
                     // Only send focus event, don't trigger default action
                     // This allows interactive elements like reply boxes to work
-                    let _ = sender
+                    match sender
                         .send(ActionEvent::FocusApp {
                             id,
-                            app_name: app,
+                            app_name: app.clone(),
                         })
-                        .await;
+                        .await
+                    {
+                        Ok(_) => info!("  ✓ FocusApp event sent successfully for '{}'", app),
+                        Err(e) => info!("  ✗ Failed to send FocusApp event: {}", e),
+                    }
                     // Don't send DefaultAction here - let it only be triggered
                     // by double-click or explicit action, not interfering with reply box
                 });

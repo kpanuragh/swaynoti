@@ -3,7 +3,7 @@ mod hyprland;
 pub use hyprland::HyprlandIpc;
 
 use std::process::Command;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 /// Compositor abstraction for window management
 pub struct CompositorIpc;
@@ -11,19 +11,22 @@ pub struct CompositorIpc;
 impl CompositorIpc {
     /// Focus a window by app name/class
     pub fn focus_window(app_name: &str) {
+        info!("CompositorIpc::focus_window called with: '{}'", app_name);
         // Try Hyprland first
         if HyprlandIpc::is_available() {
+            info!("✓ Hyprland detected, delegating to HyprlandIpc");
             HyprlandIpc::focus_window(app_name);
             return;
         }
 
         // Fallback: try swaymsg for Sway
         if Self::is_sway() {
+            info!("✓ Sway detected, delegating to swaymsg");
             Self::sway_focus_window(app_name);
             return;
         }
 
-        debug!("No supported compositor found for window focusing");
+        warn!("✗ No supported compositor found for window focusing");
     }
 
     /// Check if running on Sway

@@ -49,6 +49,7 @@ impl HyprlandIpc {
 
     /// Focus a window by app name/class
     pub fn focus_window(app_name: &str) {
+        info!("🔍 focus_window called with app_name: '{}'", app_name);
         let app_lower = app_name.to_lowercase();
 
         // Try different matching strategies
@@ -61,30 +62,35 @@ impl HyprlandIpc {
         ];
 
         for cmd in &strategies {
-            debug!("Trying Hyprland command: {}", cmd);
+            info!("  Trying: {}", cmd);
             if let Some(response) = Self::send_command(cmd) {
+                info!("    Response: '{}'", response.trim());
                 if response.trim() == "ok" || response.is_empty() {
-                    info!("Focused window for app: {}", app_name);
+                    info!("✓ Focused window for app: {}", app_name);
                     return;
                 }
             }
         }
 
         // Fallback: search all windows for fuzzy match
-        debug!("No direct match found, searching all windows for fuzzy match");
+        info!("  No direct match, trying fuzzy search...");
         if let Some(windows) = Self::send_command("j/clients") {
+            info!("  Got window list, searching for match...");
             if let Some(addr) = Self::find_window_by_fuzzy_match(&windows, app_name, &app_lower) {
-                debug!("Found matching window address: {}", addr);
+                info!("  ✓ Found matching window address: {}", addr);
                 if let Some(response) = Self::send_command(&format!("dispatch focuswindow address:{}", addr)) {
+                    info!("    Response: '{}'", response.trim());
                     if response.trim() == "ok" || response.is_empty() {
-                        info!("Focused window for app via fuzzy match: {}", app_name);
+                        info!("✓ Focused window for app via fuzzy match: {}", app_name);
                         return;
                     }
                 }
+            } else {
+                info!("  ✗ No matching window found in fuzzy search");
             }
         }
 
-        warn!("Could not focus window for app: {}", app_name);
+        warn!("✗ Could not focus window for app: {}", app_name);
     }
 
     /// Find window by fuzzy matching app name in class/title/initialclass
