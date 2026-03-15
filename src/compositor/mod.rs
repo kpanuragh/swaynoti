@@ -33,16 +33,18 @@ impl CompositorIpc {
 
     /// Focus window using swaymsg
     fn sway_focus_window(app_name: &str) {
+        // Try app_id first
         let result = Command::new("swaymsg")
-            .args(["[app_id=", &format!("{}]", app_name), "focus"])
+            .arg(&format!("[app_id={}] focus", app_name))
             .output();
 
         match result {
             Ok(output) => {
                 if !output.status.success() {
                     // Try with class instead of app_id
+                    debug!("app_id focus failed, trying class");
                     let _ = Command::new("swaymsg")
-                        .args(["[class=", &format!("{}]", app_name), "focus"])
+                        .arg(&format!("[class={}] focus", app_name))
                         .output();
                 }
             }
