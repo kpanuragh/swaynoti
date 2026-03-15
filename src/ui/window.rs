@@ -159,7 +159,10 @@ impl NotificationWindow {
         let app_name_click = app_name.clone();
         click.connect_released(move |gesture, _, _, _| {
             let button = gesture.current_button();
-            info!("🖱️  Notification {} received click with button {}", id, button);
+            info!(
+                "🖱️  Notification {} received click with button {}",
+                id, button
+            );
             if button == gtk4::gdk::BUTTON_PRIMARY {
                 info!(
                     "✓ Left click detected on notification {} - will focus app '{}'",

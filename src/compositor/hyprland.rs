@@ -94,7 +94,9 @@ impl HyprlandIpc {
                 }
 
                 // Now focus the window
-                if let Some(response) = Self::send_command(&format!("dispatch focuswindow address:{}", addr)) {
+                if let Some(response) =
+                    Self::send_command(&format!("dispatch focuswindow address:{}", addr))
+                {
                     info!("    Focus response: '{}'", response.trim());
                     if response.trim() == "ok" || response.is_empty() {
                         info!("✓ Focused window for app via fuzzy match: {}", app_name);
@@ -115,7 +117,10 @@ impl HyprlandIpc {
 
         for line in output.lines() {
             if line.starts_with("Window ") && line.contains("->") {
-                if let Some(addr) = line.strip_prefix("Window ").and_then(|rest| rest.split_whitespace().next()) {
+                if let Some(addr) = line
+                    .strip_prefix("Window ")
+                    .and_then(|rest| rest.split_whitespace().next())
+                {
                     current_addr = Some(addr.to_string());
                 }
             }
@@ -146,14 +151,22 @@ impl HyprlandIpc {
         //   initialClass: <initialclass>
         // etc.
 
-        info!("    Fuzzy search: looking for '{}' (lowercase: '{}') in {} lines", app_name, app_lower, output.lines().count());
+        info!(
+            "    Fuzzy search: looking for '{}' (lowercase: '{}') in {} lines",
+            app_name,
+            app_lower,
+            output.lines().count()
+        );
         let mut current_addr: Option<String> = None;
         let mut window_count = 0;
 
         for line in output.lines() {
             // Check for window header: "Window 5a04452b1f20 -> Alacritty:"
             if line.starts_with("Window ") && line.contains("->") {
-                if let Some(addr) = line.strip_prefix("Window ").and_then(|rest| rest.split_whitespace().next()) {
+                if let Some(addr) = line
+                    .strip_prefix("Window ")
+                    .and_then(|rest| rest.split_whitespace().next())
+                {
                     current_addr = Some(addr.to_string());
                     window_count += 1;
                     info!("    Window #{}: {}", window_count, addr);
@@ -165,9 +178,14 @@ impl HyprlandIpc {
                 let line_lower = line.to_lowercase();
 
                 // Match on class, initialClass, or title containing the app name
-                if line.contains("class:") || line.contains("initialClass:") || line.contains("title:") {
+                if line.contains("class:")
+                    || line.contains("initialClass:")
+                    || line.contains("title:")
+                {
                     info!("      Checking: {}", line.trim());
-                    if line_lower.contains(app_lower) || line.to_lowercase().contains(&app_name.to_lowercase()) {
+                    if line_lower.contains(app_lower)
+                        || line.to_lowercase().contains(&app_name.to_lowercase())
+                    {
                         info!("      ✓ MATCH FOUND! Returning address: {}", addr);
                         return Some(addr.clone());
                     }
@@ -175,7 +193,10 @@ impl HyprlandIpc {
             }
         }
 
-        info!("    Fuzzy search completed, checked {} windows, no match found", window_count);
+        info!(
+            "    Fuzzy search completed, checked {} windows, no match found",
+            window_count
+        );
         None
     }
 
