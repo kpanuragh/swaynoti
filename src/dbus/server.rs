@@ -51,12 +51,13 @@ pub async fn start_dbus_server_with_history(
     // Spawn task to handle close events and emit NotificationClosed signals
     let close_conn = connection.clone();
     tokio::spawn(async move {
-        let object_server = close_conn.object_server();
         while let Ok((id, reason)) = close_receiver.recv().await {
             info!(
                 "Emitting NotificationClosed signal: id={}, reason={:?}",
                 id, reason
             );
+            // Get fresh object server reference for each event
+            let object_server = close_conn.object_server();
             // Get interface reference to emit signal
             if let Ok(iface_ref) = object_server
                 .interface::<_, NotificationServer>("/org/freedesktop/Notifications")
@@ -78,11 +79,12 @@ pub async fn start_dbus_server_with_history(
     // Spawn task to handle action events and emit ActionInvoked signals
     let action_conn = connection.clone();
     tokio::spawn(async move {
-        let object_server = action_conn.object_server();
         while let Ok(event) = action_receiver.recv().await {
             match event {
                 ActionEvent::ActionInvoked { id, action_key } => {
                     info!("Emitting ActionInvoked signal: id={}, action={}", id, action_key);
+                    // Get fresh object server reference for each event
+                    let object_server = action_conn.object_server();
                     // Get interface reference to emit signal
                     if let Ok(iface_ref) = object_server
                         .interface::<_, NotificationServer>("/org/freedesktop/Notifications")
