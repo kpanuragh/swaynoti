@@ -91,6 +91,8 @@ fn main() -> Result<()> {
     // Create communication channels
     let (ui_sender, ui_receiver) = async_channel::unbounded::<UiEvent>();
     let (action_sender, action_receiver) = async_channel::unbounded::<ActionEvent>();
+    // Create a second receiver for D-Bus signal emission
+    let (action_dbus_sender, action_dbus_receiver) = async_channel::unbounded::<ActionEvent>();
     let (close_sender, close_receiver) =
         async_channel::unbounded::<(u32, notification::CloseReason)>();
 
@@ -119,7 +121,14 @@ fn main() -> Result<()> {
     // Spawn async tasks
     runtime.spawn(async move {
         // Start D-Bus server with history
-        match start_dbus_server_with_history(dbus_manager, close_receiver, dbus_history).await {
+        match start_dbus_server_with_history(
+            dbus_manager,
+            close_receiver,
+            action_dbus_receiver,
+            dbus_history,
+        )
+        .await
+        {
             Ok(_connection) => {
                 // Keep the connection alive forever
                 // The connection must stay in scope for the D-Bus name to remain registered
@@ -155,49 +164,64 @@ fn main() -> Result<()> {
     // Handle action events from UI
     let action_manager = manager.clone();
     let action_history = history_store.clone();
+    let dbus_sender = action_dbus_sender.clone();
     runtime.spawn(async move {
         while let Ok(event) = action_receiver.recv().await {
-            match event {
+            match &event {
                 ActionEvent::ActionInvoked { id, action_key } => {
                     info!("Action '{}' invoked on notification {}", action_key, id);
-                    action_manager.invoke_action(id, &action_key).await;
+                    action_manager.invoke_action(*id, action_key).await;
+                    // Forward to D-Bus server for signal emission
+                    let _ = dbus_sender.send(event.clone()).await;
                 }
                 ActionEvent::Dismissed { id } => {
                     info!("Notification {} dismissed by user", id);
                     if let Some(ref store) = action_history {
-                        let _ = store.mark_dismissed(id);
+                        let _ = store.mark_dismissed(*id);
                     }
                     action_manager
-                        .close_notification(id, notification::CloseReason::Dismissed)
+                        .close_notification(*id, notification::CloseReason::Dismissed)
                         .await;
                 }
                 ActionEvent::Hovered { id } => {
-                    action_manager.set_hovered(id, true);
+                    action_manager.set_hovered(*id, true);
                 }
                 ActionEvent::Unhovered { id } => {
-                    action_manager.set_hovered(id, false);
+                    action_manager.set_hovered(*id, false);
                 }
                 ActionEvent::FocusApp { id, app_name } => {
                     info!("Focusing app '{}' for notification {}", app_name, id);
-                    CompositorIpc::focus_window(&app_name);
+                    CompositorIpc::focus_window(app_name);
                     // Also dismiss the notification after focusing
                     action_manager
-                        .close_notification(id, notification::CloseReason::Dismissed)
+                        .close_notification(*id, notification::CloseReason::Dismissed)
                         .await;
                 }
                 ActionEvent::InlineReply { id, text } => {
                     info!("Inline reply for notification {}: {}", id, text);
-                    // Send the reply as an action with the text
+                    // Send the reply as an action with the text and forward to D-Bus
+                    let inline_action = ActionEvent::ActionInvoked {
+                        id: *id,
+                        action_key: format!("inline-reply:{}", text),
+                    };
                     action_manager
-                        .invoke_action(id, &format!("inline-reply:{}", text))
+                        .invoke_action(*id, &format!("inline-reply:{}", text))
                         .await;
+                    let _ = dbus_sender.send(inline_action).await;
                     action_manager
-                        .close_notification(id, notification::CloseReason::Dismissed)
+                        .close_notification(*id, notification::CloseReason::Dismissed)
                         .await;
                 }
                 ActionEvent::DefaultAction { id } => {
                     info!("Default action triggered for notification {}", id);
-                    action_manager.invoke_action(id, "default").await;
+                    action_manager.invoke_action(*id, "default").await;
+                    // Forward to D-Bus server for signal emission
+                    let _ = dbus_sender
+                        .send(ActionEvent::ActionInvoked {
+                            id: *id,
+                            action_key: "default".to_string(),
+                        })
+                        .await;
                 }
             }
         }

@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use async_channel::Receiver;
 use tracing::{debug, info};
 use zbus::interface;
 use zbus::object_server::SignalEmitter;
@@ -9,26 +8,18 @@ use zbus::zvariant::{OwnedValue, Value};
 
 use super::types::{ServerInfo, CAPABILITIES};
 use crate::history::{HistoryEntry, HistoryStore};
-use crate::notification::{
-    CloseReason, ImageData, Notification, NotificationHints, NotificationManager, Urgency,
-};
+use crate::notification::{ImageData, Notification, NotificationHints, NotificationManager, Urgency};
 
 /// D-Bus notification server implementing org.freedesktop.Notifications
 pub struct NotificationServer {
     manager: Arc<NotificationManager>,
-    #[allow(dead_code)]
-    close_receiver: Receiver<(u32, CloseReason)>,
     history_store: Option<Arc<HistoryStore>>,
 }
 
 impl NotificationServer {
-    pub fn new(
-        manager: Arc<NotificationManager>,
-        close_receiver: Receiver<(u32, CloseReason)>,
-    ) -> Self {
+    pub fn new(manager: Arc<NotificationManager>) -> Self {
         Self {
             manager,
-            close_receiver,
             history_store: None,
         }
     }
@@ -253,7 +244,7 @@ impl NotificationServer {
 
     /// Signal emitted when a notification is closed
     #[zbus(signal)]
-    async fn notification_closed(
+    pub async fn notification_closed(
         emitter: &SignalEmitter<'_>,
         id: u32,
         reason: u32,
@@ -261,7 +252,7 @@ impl NotificationServer {
 
     /// Signal emitted when an action is invoked
     #[zbus(signal)]
-    async fn action_invoked(
+    pub async fn action_invoked(
         emitter: &SignalEmitter<'_>,
         id: u32,
         action_key: String,
