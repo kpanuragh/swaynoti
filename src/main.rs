@@ -173,6 +173,10 @@ fn main() -> Result<()> {
                     action_manager.invoke_action(*id, action_key).await;
                     // Forward to D-Bus server for signal emission
                     let _ = dbus_sender.send(event.clone()).await;
+                    // Close the notification after action is invoked
+                    action_manager
+                        .close_notification(*id, notification::CloseReason::Dismissed)
+                        .await;
                 }
                 ActionEvent::Dismissed { id } => {
                     info!("Notification {} dismissed by user", id);
