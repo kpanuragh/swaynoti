@@ -8,7 +8,9 @@ use zbus::zvariant::{OwnedValue, Value};
 
 use super::types::{ServerInfo, CAPABILITIES};
 use crate::history::{HistoryEntry, HistoryStore};
-use crate::notification::{ImageData, Notification, NotificationHints, NotificationManager, Urgency};
+use crate::notification::{
+    ImageData, Notification, NotificationHints, NotificationManager, Urgency,
+};
 
 /// D-Bus notification server implementing org.freedesktop.Notifications
 pub struct NotificationServer {

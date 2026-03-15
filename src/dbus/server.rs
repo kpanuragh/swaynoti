@@ -82,7 +82,10 @@ pub async fn start_dbus_server_with_history(
         while let Ok(event) = action_receiver.recv().await {
             match event {
                 ActionEvent::ActionInvoked { id, action_key } => {
-                    info!("Emitting ActionInvoked signal: id={}, action={}", id, action_key);
+                    info!(
+                        "Emitting ActionInvoked signal: id={}, action={}",
+                        id, action_key
+                    );
                     // Get fresh object server reference for each event
                     let object_server = action_conn.object_server();
                     // Get interface reference to emit signal
